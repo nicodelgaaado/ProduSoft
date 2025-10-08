@@ -1,14 +1,21 @@
 package com.produsoft.workflow.dto;
 
+import com.produsoft.workflow.checklist.StageChecklistService;
 import com.produsoft.workflow.domain.Order;
 import com.produsoft.workflow.domain.OrderStageStatus;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
 public class OrderMapper {
+
+    private final StageChecklistService stageChecklistService;
+
+    public OrderMapper(StageChecklistService stageChecklistService) {
+        this.stageChecklistService = stageChecklistService;
+    }
 
     public OrderResponse toOrderResponse(Order order) {
         List<OrderStageStatusResponse> stages = order.getStages().stream()
@@ -42,7 +49,8 @@ public class OrderMapper {
             status.getExceptionReason(),
             status.getSupervisorNotes(),
             status.getApprovedBy(),
-            status.getUpdatedAt()
+            status.getUpdatedAt(),
+            toChecklist(status)
         );
     }
 
@@ -60,7 +68,15 @@ public class OrderMapper {
             status.getClaimedAt(),
             status.getUpdatedAt(),
             status.getExceptionReason(),
-            status.getNotes()
+            status.getNotes(),
+            toChecklist(status)
         );
+    }
+
+    private List<ChecklistItemResponse> toChecklist(OrderStageStatus status) {
+        return stageChecklistService.buildChecklist(status.getStage(), status.hasChecklistState() ? status.getChecklistState() : null)
+            .stream()
+            .map(item -> new ChecklistItemResponse(item.id(), item.label(), item.required(), item.completed()))
+            .collect(Collectors.toList());
     }
 }

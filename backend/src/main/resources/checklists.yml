@@ -1,0 +1,38 @@
+PREPARATION:
+  - id: confirm-order-details
+    label: Confirm order details with sales
+    required: true
+  - id: stage-equipment
+    label: Stage required equipment and materials
+    required: true
+  - id: update-order-notes
+    label: Update internal notes with preparation findings
+    required: false
+
+ASSEMBLY:
+  - id: gather-components
+    label: Gather all components for assembly workstation
+    required: true
+  - id: assemble-order
+    label: Assemble order according to build sheet
+    required: true
+  - id: quality-inspection
+    label: Perform in-line quality inspection
+    required: true
+  - id: record-progress
+    label: Record progress in production tracker
+    required: false
+
+DELIVERY:
+  - id: package-order
+    label: Package order for shipment
+    required: true
+  - id: schedule-carrier
+    label: Schedule carrier pickup or delivery slot
+    required: true
+  - id: confirm-paperwork
+    label: Confirm paperwork and labels are complete
+    required: true
+  - id: notify-customer
+    label: Notify customer with delivery details
+    required: false

@@ -8,12 +8,14 @@ import com.produsoft.workflow.dto.FlagStageExceptionRequest;
 import com.produsoft.workflow.dto.OrderMapper;
 import com.produsoft.workflow.dto.OrderStageStatusResponse;
 import com.produsoft.workflow.dto.WorkQueueItemResponse;
+import com.produsoft.workflow.dto.UpdateChecklistItemRequest;
 import com.produsoft.workflow.service.OrderWorkflowService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -65,6 +67,14 @@ public class OperatorController {
                                                   @Valid @RequestBody FlagStageExceptionRequest request) {
         StageType stageType = StageType.fromString(stage);
         return mapper.toStageResponse(orderWorkflowService.flagException(orderId, stageType, request));
+    }
+
+    @PatchMapping("/orders/{orderId}/stages/{stage}/checklist")
+    public OrderStageStatusResponse updateChecklist(@PathVariable Long orderId,
+                                                    @PathVariable String stage,
+                                                    @Valid @RequestBody UpdateChecklistItemRequest request) {
+        StageType stageType = StageType.fromString(stage);
+        return mapper.toStageResponse(orderWorkflowService.updateChecklistItem(orderId, stageType, request));
     }
 
     private List<StageState> parseStates(List<String> states) {
