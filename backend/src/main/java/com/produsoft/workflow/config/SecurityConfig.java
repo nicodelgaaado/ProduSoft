@@ -52,13 +52,13 @@ public class SecurityConfig {
     public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
         UserDetails operator = User
             .withUsername("operator1")
-            .password(passwordEncoder.encode("operator123"))
+            .password(passwordEncoder.encode("user"))
             .roles("OPERATOR")
             .build();
 
         UserDetails supervisor = User
             .withUsername("supervisor1")
-            .password(passwordEncoder.encode("supervisor123"))
+            .password(passwordEncoder.encode("admin"))
             .roles("SUPERVISOR")
             .build();
 

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -61,7 +61,7 @@ export default function LoginPage() {
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="••••••"
+          placeholder="******"
           required
         />
 
@@ -75,14 +75,13 @@ export default function LoginPage() {
         <p>Sample accounts:</p>
         <ul>
           <li>
-            Operator — <code>operator1 / operator123</code>
+            Operator - <code>operator1 / user</code>
           </li>
           <li>
-            Supervisor — <code>supervisor1 / supervisor123</code>
+            Supervisor - <code>supervisor1 / admin</code>
           </li>
         </ul>
       </div>
     </section>
   );
 }
-
