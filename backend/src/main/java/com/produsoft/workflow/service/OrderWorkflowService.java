@@ -89,7 +89,7 @@ public class OrderWorkflowService {
 
     public List<OrderStageStatus> fetchQueue(StageType stage, List<StageState> states) {
         List<StageState> effectiveStates = (states == null || states.isEmpty())
-            ? List.of(StageState.PENDING, StageState.REWORK)
+            ? List.of(StageState.PENDING, StageState.REWORK, StageState.IN_PROGRESS)
             : states;
         return stageStatusRepository.findQueueByStageAndStates(stage, effectiveStates);
     }
