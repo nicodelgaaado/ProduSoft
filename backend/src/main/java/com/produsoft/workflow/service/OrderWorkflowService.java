@@ -1,10 +1,12 @@
 package com.produsoft.workflow.service;
 
+import com.produsoft.workflow.checklist.StageChecklistService;
 import com.produsoft.workflow.domain.Order;
 import com.produsoft.workflow.domain.OrderStageStatus;
 import com.produsoft.workflow.domain.StageState;
 import com.produsoft.workflow.domain.StageType;
 import com.produsoft.workflow.dto.CompleteStageRequest;
+import com.produsoft.workflow.dto.UpdateChecklistItemRequest;
 import com.produsoft.workflow.dto.CreateOrderRequest;
 import com.produsoft.workflow.dto.FlagStageExceptionRequest;
 import com.produsoft.workflow.dto.ReprioritizeOrderRequest;
@@ -34,11 +36,14 @@ public class OrderWorkflowService {
 
     private final OrderRepository orderRepository;
     private final OrderStageStatusRepository stageStatusRepository;
+    private final StageChecklistService stageChecklistService;
 
     public OrderWorkflowService(OrderRepository orderRepository,
-                                OrderStageStatusRepository stageStatusRepository) {
+                                OrderStageStatusRepository stageStatusRepository,
+                                StageChecklistService stageChecklistService) {
         this.orderRepository = orderRepository;
         this.stageStatusRepository = stageStatusRepository;
+        this.stageChecklistService = stageChecklistService;
     }
 
     public Order createOrder(CreateOrderRequest request) {
@@ -95,6 +100,7 @@ public class OrderWorkflowService {
             throw new InvalidStageActionException("Stage is not available to claim: " + stage);
         }
         status.markInProgress(assignee);
+        status.setChecklistState(stageChecklistService.initializeState(stage));
         Order order = status.getOrder();
         order.setCurrentStage(stage);
         order.touch();
@@ -107,11 +113,33 @@ public class OrderWorkflowService {
         if (status.getState() != StageState.IN_PROGRESS) {
             throw new InvalidStageActionException("Stage must be in progress to complete: " + stage);
         }
+        if (!stageChecklistService.isChecklistComplete(stage, status.getChecklistState())) {
+            throw new InvalidStageActionException("All required checklist tasks must be completed before closing stage: " + stage);
+        }
         status.setAssignee(request.assignee());
         status.markCompleted(request.serviceTimeMinutes(), request.notes());
         Order order = status.getOrder();
         order.touch();
         advanceToNextStage(order, stage);
+        return status;
+    }
+
+    public OrderStageStatus updateChecklistItem(Long orderId, StageType stage, UpdateChecklistItemRequest request) {
+        OrderStageStatus status = getStageStatus(orderId, stage);
+        if (status.getState() != StageState.IN_PROGRESS) {
+            throw new InvalidStageActionException("Checklist can only be updated while stage is in progress: " + stage);
+        }
+        try {
+            var currentState = status.hasChecklistState()
+                ? status.getChecklistState()
+                : stageChecklistService.initializeState(stage);
+            status.setChecklistState(stageChecklistService.updateTask(stage, currentState, request.taskId(), request.completed()));
+        } catch (IllegalArgumentException ex) {
+            throw new InvalidStageActionException(ex.getMessage());
+        }
+        status.setUpdatedAt(Instant.now());
+        Order order = status.getOrder();
+        order.touch();
         return status;
     }
 
@@ -255,6 +283,7 @@ public class OrderWorkflowService {
                 status.setExceptionReason(null);
                 status.setSupervisorNotes(null);
                 status.setApprovedBy(null);
+                status.clearChecklistState();
             }
         }
     }

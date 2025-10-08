@@ -9,6 +9,13 @@ export type StageState =
   | 'SKIPPED'
   | 'REWORK';
 
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  required: boolean;
+  completed: boolean;
+}
+
 export interface OrderStageStatus {
   id: number;
   stage: StageType;
@@ -23,6 +30,7 @@ export interface OrderStageStatus {
   supervisorNotes: string | null;
   approvedBy: string | null;
   updatedAt: string | null;
+  checklist: ChecklistItem[];
 }
 
 export interface OrderResponse {
@@ -50,6 +58,7 @@ export interface WorkQueueItem {
   updatedAt: string | null;
   exceptionReason: string | null;
   notes: string | null;
+  checklist: ChecklistItem[];
 }
 
 export interface StageSummaryResponse {

@@ -1,10 +1,11 @@
-﻿import type {
+import type {
   AuthUser,
   OrderResponse,
   StageState,
   StageType,
   WipSummaryResponse,
   WorkQueueItem,
+  OrderStageStatus,
 } from '@/types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
@@ -83,7 +84,7 @@ export const WorkflowApi = {
     return apiFetch<WorkQueueItem[]>(`/api/operator/queue?${params.toString()}`, { method: 'GET' }, token);
   },
   claimStage: (orderId: number, stage: StageType, assignee: string, token: string) =>
-    apiFetch(`/api/operator/orders/${orderId}/stages/${stage}/claim`, {
+    apiFetch<OrderStageStatus>(`/api/operator/orders/${orderId}/stages/${stage}/claim`, {
       method: 'POST',
       body: JSON.stringify({ assignee }),
     }, token),
@@ -93,7 +94,7 @@ export const WorkflowApi = {
     payload: { assignee: string; serviceTimeMinutes?: number | null; notes?: string | null },
     token: string,
   ) =>
-    apiFetch(`/api/operator/orders/${orderId}/stages/${stage}/complete`, {
+    apiFetch<OrderStageStatus>(`/api/operator/orders/${orderId}/stages/${stage}/complete`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }, token),
@@ -103,8 +104,18 @@ export const WorkflowApi = {
     payload: { assignee: string; exceptionReason: string; notes?: string | null },
     token: string,
   ) =>
-    apiFetch(`/api/operator/orders/${orderId}/stages/${stage}/flag-exception`, {
+    apiFetch<OrderStageStatus>(`/api/operator/orders/${orderId}/stages/${stage}/flag-exception`, {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }, token),
+  updateChecklistItem: (
+    orderId: number,
+    stage: StageType,
+    payload: { taskId: string; completed: boolean },
+    token: string,
+  ) =>
+    apiFetch<OrderStageStatus>(`/api/operator/orders/${orderId}/stages/${stage}/checklist`, {
+      method: 'PATCH',
       body: JSON.stringify(payload),
     }, token),
   wipSummary: (token: string) => apiFetch<WipSummaryResponse>('/api/supervisor/wip', { method: 'GET' }, token),
@@ -119,5 +130,3 @@ export const WorkflowApi = {
       body: JSON.stringify(payload),
     }, token),
 };
-
-

@@ -3,6 +3,7 @@ package com.produsoft.workflow.dto;
 import com.produsoft.workflow.domain.StageState;
 import com.produsoft.workflow.domain.StageType;
 import java.time.Instant;
+import java.util.List;
 
 public record WorkQueueItemResponse(
     Long orderId,
@@ -16,5 +17,6 @@ public record WorkQueueItemResponse(
     Instant claimedAt,
     Instant updatedAt,
     String exceptionReason,
-    String notes
+    String notes,
+    List<ChecklistItemResponse> checklist
 ) {}

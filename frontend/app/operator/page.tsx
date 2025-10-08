@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RequireAuth } from '@/components/RequireAuth';
@@ -6,12 +6,13 @@ import { Modal } from '@/components/Modal';
 import { StageBadge } from '@/components/StageBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { WorkflowApi } from '@/lib/api';
-import type { StageType, WorkQueueItem } from '@/types/api';
+import type { ChecklistItem, StageType, WorkQueueItem } from '@/types/api';
 
 const stageOptions: StageType[] = ['PREPARATION', 'ASSEMBLY', 'DELIVERY'];
 
 type ModalState =
   | { type: 'claim'; item: WorkQueueItem }
+  | { type: 'checklist'; item: WorkQueueItem }
   | { type: 'complete'; item: WorkQueueItem }
   | { type: 'exception'; item: WorkQueueItem }
   | null;
@@ -36,6 +37,9 @@ function OperatorView() {
   const [exceptionReason, setExceptionReason] = useState<string>('');
   const [exceptionNotes, setExceptionNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [checklists, setChecklists] = useState<Record<string, ChecklistItem[]>>({});
+  const [checklistSaving, setChecklistSaving] = useState<boolean>(false);
+  const buildChecklistKey = (orderId: number, stageType: StageType) => `${orderId}:${stageType}`;
 
   const loadQueue = useCallback(async () => {
     if (!token) return;
@@ -44,6 +48,11 @@ function OperatorView() {
     try {
       const response = await WorkflowApi.operatorQueue(stage, token);
       setQueue(response);
+      const nextChecklists: Record<string, ChecklistItem[]> = {};
+      response.forEach((item) => {
+        nextChecklists[buildChecklistKey(item.orderId, item.stage)] = item.checklist?.map((task) => ({ ...task })) ?? [];
+      });
+      setChecklists(nextChecklists);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch queue';
       setError(message);
@@ -63,6 +72,7 @@ function OperatorView() {
     setExceptionReason('');
     setExceptionNotes('');
     setSubmitting(false);
+    setChecklistSaving(false);
   };
 
   const refreshAfterAction = async () => {
@@ -74,8 +84,31 @@ function OperatorView() {
     if (!token || !user) return;
     setSubmitting(true);
     try {
-      await WorkflowApi.claimStage(item.orderId, item.stage, user.username, token);
-      await refreshAfterAction();
+      const status = await WorkflowApi.claimStage(item.orderId, item.stage, user.username, token);
+      const tasks = status.checklist?.map((task) => ({ ...task })) ?? [];
+      const updatedItem: WorkQueueItem = {
+        ...item,
+        stageState: status.state,
+        assignee: status.assignee ?? user.username,
+        claimedAt: status.claimedAt,
+        updatedAt: status.updatedAt,
+        notes: status.notes,
+        checklist: tasks,
+        overallState: 'IN_PROGRESS',
+        currentStage: item.stage,
+      };
+      setChecklists((prev) => ({
+        ...prev,
+        [buildChecklistKey(item.orderId, item.stage)]: tasks,
+      }));
+      setQueue((prev) =>
+        prev.map((row) =>
+          row.orderId === item.orderId && row.stage === item.stage ? updatedItem : row,
+        ),
+      );
+      setModalState({ type: 'checklist', item: updatedItem });
+      setSubmitting(false);
+      loadQueue().catch((err) => console.error(err));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to claim stage';
       setError(message);
@@ -83,8 +116,78 @@ function OperatorView() {
     }
   };
 
+  const handleChecklistToggle = async (item: WorkQueueItem, taskId: string, completed: boolean) => {
+    if (!token || !user) return;
+    if (item.assignee && item.assignee !== user.username) {
+      setError('Only the assigned operator can update the checklist.');
+      return;
+    }
+    setChecklistSaving(true);
+    try {
+      const status = await WorkflowApi.updateChecklistItem(item.orderId, item.stage, { taskId, completed }, token);
+      const tasks = status.checklist?.map((task) => ({ ...task })) ?? [];
+      setChecklists((prev) => ({
+        ...prev,
+        [buildChecklistKey(item.orderId, item.stage)]: tasks,
+      }));
+      setQueue((prev) =>
+        prev.map((row) =>
+          row.orderId === item.orderId && row.stage === item.stage
+            ? {
+                ...row,
+                stageState: status.state,
+                assignee: status.assignee ?? row.assignee,
+                claimedAt: status.claimedAt,
+                updatedAt: status.updatedAt,
+                notes: status.notes,
+                checklist: tasks,
+              }
+            : row,
+        ),
+      );
+      setModalState((prev) => {
+        if (!prev || !('item' in prev)) {
+          return prev;
+        }
+        if (prev.item.orderId === item.orderId && prev.item.stage === item.stage) {
+          return {
+            ...prev,
+            item: {
+              ...prev.item,
+              stageState: status.state,
+              assignee: status.assignee ?? prev.item.assignee,
+              claimedAt: status.claimedAt,
+              updatedAt: status.updatedAt,
+              notes: status.notes,
+              checklist: tasks,
+            },
+          } as ModalState;
+        }
+        return prev;
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update checklist';
+      setError(message);
+    } finally {
+      setChecklistSaving(false);
+    }
+  };
+  const checklistForItem = useCallback((item: WorkQueueItem) => {
+    const key = buildChecklistKey(item.orderId, item.stage);
+    return checklists[key] ?? item.checklist ?? [];
+  }, [checklists]);
+
+  const isChecklistComplete = useCallback(
+    (item: WorkQueueItem) => checklistForItem(item).every((task) => !task.required || task.completed),
+    [checklistForItem],
+  );
+
   const handleComplete = async (item: WorkQueueItem) => {
     if (!token || !user) return;
+    if (!isChecklistComplete(item)) {
+      setError('Complete all required tasks before finishing the stage.');
+      return;
+    }
     setSubmitting(true);
     try {
       await WorkflowApi.completeStage(
@@ -127,9 +230,19 @@ function OperatorView() {
     }
   };
 
+  const decoratedQueue = useMemo(
+    () =>
+      queue.map((item) => {
+        const key = buildChecklistKey(item.orderId, item.stage);
+        const tasks = checklists[key];
+        return tasks ? { ...item, checklist: tasks } : item;
+      }),
+    [queue, checklists],
+  );
+
   const orderedQueue = useMemo(
     () =>
-      [...queue].sort((a, b) => {
+      [...decoratedQueue].sort((a, b) => {
         const priorityA = a.priority ?? 0;
         const priorityB = b.priority ?? 0;
         if (priorityA === priorityB) {
@@ -137,7 +250,7 @@ function OperatorView() {
         }
         return priorityB - priorityA;
       }),
-    [queue],
+    [decoratedQueue],
   );
 
   return (
@@ -171,7 +284,7 @@ function OperatorView() {
             Stage queue <span className="muted">({orderedQueue.length})</span>
           </h2>
           <button type="button" className="link-button" onClick={loadQueue} disabled={loading}>
-            {loading ? 'Refreshing…' : 'Refresh'}
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
         </header>
         <div className="table">
@@ -184,39 +297,58 @@ function OperatorView() {
             <span>Actions</span>
           </div>
           <div className="table__body">
-            {loading && orderedQueue.length === 0 && <div className="table__empty">Loading queue…</div>}
+            {loading && orderedQueue.length === 0 && <div className="table__empty">Loading queue...</div>}
             {!loading && orderedQueue.length === 0 && <div className="table__empty">No items ready for this stage.</div>}
-            {orderedQueue.map((item) => (
-              <article key={`${item.orderId}-${item.stage}`} className="table__row">
-                <span>
-                  <strong>{item.orderNumber}</strong>
-                </span>
-                <span>{item.priority ?? '—'}</span>
-                <span>
-                  <StageBadge state={item.stageState} />
-                  {item.exceptionReason && <small className="muted"> {item.exceptionReason}</small>}
-                </span>
-                <span>{item.assignee ?? 'Unassigned'}</span>
-                <span>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : '—'}</span>
-                <span className="table__actions">
-                  {(item.stageState === 'PENDING' || item.stageState === 'REWORK') && (
-                    <button type="button" onClick={() => setModalState({ type: 'claim', item })}>
-                      Claim
-                    </button>
-                  )}
-                  {item.stageState === 'IN_PROGRESS' && item.assignee === user?.username && (
-                    <>
-                      <button type="button" onClick={() => setModalState({ type: 'complete', item })}>
-                        Complete
+            {orderedQueue.map((item) => {
+              const canEditChecklist = item.assignee === user?.username;
+              const canComplete = isChecklistComplete(item);
+              return (
+                <article key={`${item.orderId}-${item.stage}`} className="table__row">
+                  <span>
+                    <strong>{item.orderNumber}</strong>
+                  </span>
+                  <span>{item.priority ?? '-'}</span>
+                  <span>
+                    <StageBadge state={item.stageState} />
+                    {item.exceptionReason && <small className="muted"> {item.exceptionReason}</small>}
+                  </span>
+                  <span>{item.assignee ?? 'Unassigned'}</span>
+                  <span>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : '-'}</span>
+                  <span className="table__actions">
+                    {(item.stageState === 'PENDING' || item.stageState === 'REWORK') && (
+                      <button type="button" onClick={() => setModalState({ type: 'claim', item })}>
+                        Claim
                       </button>
-                      <button type="button" className="danger" onClick={() => setModalState({ type: 'exception', item })}>
-                        Flag exception
-                      </button>
-                    </>
-                  )}
-                </span>
-              </article>
-            ))}
+                    )}
+                    {item.stageState === 'IN_PROGRESS' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setModalState({ type: 'checklist', item })}
+                          disabled={!canEditChecklist}
+                          title={!canEditChecklist ? 'Only the assigned operator can update the checklist' : undefined}
+                        >
+                          Checklist
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setModalState({ type: 'complete', item })}
+                          disabled={!canEditChecklist || !canComplete}
+                          title={!canComplete && canEditChecklist ? 'Complete all required tasks first' : undefined}
+                        >
+                          Complete
+                        </button>
+                        {canEditChecklist && (
+                          <button type="button" className="danger" onClick={() => setModalState({ type: 'exception', item })}>
+                            Flag exception
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </span>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -236,7 +368,7 @@ function OperatorView() {
                 onClick={() => modalState && handleClaimConfirm(modalState.item)}
                 disabled={submitting}
               >
-                {submitting ? 'Claiming…' : 'Claim stage'}
+                {submitting ? 'Claiming...' : 'Claim stage'}
               </button>
             )}
           </div>
@@ -247,6 +379,53 @@ function OperatorView() {
             Confirm claim of <strong>{modalState.item.orderNumber}</strong> at the{' '}
             <strong>{modalState.item.stage.toLowerCase()}</strong> stage.
           </p>
+        )}
+      </Modal>
+
+      <Modal
+        open={modalState?.type === 'checklist'}
+        title="Stage checklist"
+        onClose={closeModal}
+        footer={
+          <div className="modal-actions">
+            <button type="button" onClick={closeModal}>
+              Close
+            </button>
+          </div>
+        }
+      >
+        {modalState?.type === 'checklist' && (
+          <div className="modal-form">
+            <p>
+              Check off the tasks for <strong>{modalState.item.orderNumber}</strong> at the{' '}
+              <strong>{modalState.item.stage.toLowerCase()}</strong> stage.
+            </p>
+            {checklistForItem(modalState.item).length === 0 ? (
+              <p className="muted">No checklist is configured for this stage.</p>
+            ) : (
+              checklistForItem(modalState.item).map((task) => (
+                <label key={task.id}>
+                  <input
+                    type="checkbox"
+                    checked={task.completed}
+                    onChange={(event) => handleChecklistToggle(modalState.item, task.id, event.target.checked)}
+                    disabled={checklistSaving || modalState.item.assignee !== user?.username}
+                  />
+                  <span>
+                    {task.label}
+                    {task.required ? ' *' : ''}
+                  </span>
+                </label>
+              ))
+            )}
+            {checklistSaving && <small className="muted">Saving checklist updates...</small>}
+            {modalState.item.assignee !== user?.username && checklistForItem(modalState.item).length > 0 && (
+              <p className="muted">Only the assigned operator can update this checklist.</p>
+            )}
+            {!isChecklistComplete(modalState.item) && modalState.item.assignee === user?.username && (
+              <p className="muted">All required tasks must be marked before completing the stage.</p>
+            )}
+          </div>
         )}
       </Modal>
 
@@ -263,9 +442,10 @@ function OperatorView() {
               <button
                 type="button"
                 onClick={() => modalState && handleComplete(modalState.item)}
-                disabled={submitting}
+                disabled={submitting || !isChecklistComplete(modalState.item)}
+                title={!isChecklistComplete(modalState.item) ? 'Complete all required tasks first' : undefined}
               >
-                {submitting ? 'Completing…' : 'Complete stage'}
+                {submitting ? 'Completing...' : 'Complete stage'}
               </button>
             )}
           </div>
@@ -276,6 +456,9 @@ function OperatorView() {
             <p>
               Wrap up <strong>{modalState.item.orderNumber}</strong> and capture optional service details.
             </p>
+            {!isChecklistComplete(modalState.item) && (
+              <p className="muted">Complete the stage checklist before submitting.</p>
+            )}
             <label htmlFor="serviceTime">Service time (minutes)</label>
             <input
               id="serviceTime"
@@ -314,7 +497,7 @@ function OperatorView() {
                 disabled={submitting || !exceptionReason}
                 className="danger"
               >
-                {submitting ? 'Submitting…' : 'Flag exception'}
+                {submitting ? 'Submitting...' : 'Flag exception'}
               </button>
             )}
           </div>
@@ -348,4 +531,20 @@ function OperatorView() {
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

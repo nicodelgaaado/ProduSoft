@@ -11,8 +11,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Convert;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @Entity
@@ -55,6 +58,10 @@ public class OrderStageStatus {
     private String approvedBy;
 
     private Instant updatedAt;
+
+    @Convert(converter = ChecklistStateConverter.class)
+    @Column(name = "checklist_state", columnDefinition = "TEXT")
+    private Map<String, Boolean> checklistState;
 
     public void markPending() {
         this.state = StageState.PENDING;
@@ -116,6 +123,7 @@ public class OrderStageStatus {
         this.exceptionReason = null;
         this.state = StageState.REWORK;
         this.updatedAt = Instant.now();
+        this.checklistState = null;
     }
 
     public void markReadyAfterRework() {
@@ -233,6 +241,22 @@ public class OrderStageStatus {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Map<String, Boolean> getChecklistState() {
+        return checklistState == null ? new LinkedHashMap<>() : new LinkedHashMap<>(checklistState);
+    }
+
+    public void setChecklistState(Map<String, Boolean> checklistState) {
+        this.checklistState = checklistState == null ? null : new LinkedHashMap<>(checklistState);
+    }
+
+    public void clearChecklistState() {
+        this.checklistState = null;
+    }
+
+    public boolean hasChecklistState() {
+        return checklistState != null && !checklistState.isEmpty();
     }
 
     @Override
