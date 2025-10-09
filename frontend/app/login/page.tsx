@@ -78,7 +78,7 @@ export default function LoginPage() {
             Operator - <code>operator1 / user</code>
           </li>
           <li>
-            Supervisor - <code>supervisor1 / admin</code>
+            Supervisor - <code>supervisor1 / superuser</code>
           </li>
         </ul>
       </div>
