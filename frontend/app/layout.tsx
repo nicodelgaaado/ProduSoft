@@ -7,7 +7,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Supply Chain Workflow',
+  title: 'ProduSoft',
   description: 'Operator and supervisor workflow console with staged order tracking.',
 };
 

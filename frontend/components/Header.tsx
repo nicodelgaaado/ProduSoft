@@ -25,7 +25,7 @@ export function Header() {
 
   return (
     <header className="app-header">
-      <div className="app-header__brand">Supply Chain Workflow</div>
+      <div className="app-header__brand">ProduSoft</div>
       <nav className="app-header__nav">
         {visibleLinks.map((link) => (
           <Link
