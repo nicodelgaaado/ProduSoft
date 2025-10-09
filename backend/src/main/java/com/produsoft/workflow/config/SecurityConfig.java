@@ -58,7 +58,7 @@ public class SecurityConfig {
 
         UserDetails supervisor = User
             .withUsername("supervisor1")
-            .password(passwordEncoder.encode("admin"))
+            .password(passwordEncoder.encode("superuser"))
             .roles("SUPERVISOR")
             .build();
 
