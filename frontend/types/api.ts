@@ -105,3 +105,8 @@ export interface AiConversationResponse {
   updatedAt: string;
   messages: AiMessageResponse[];
 }
+
+export type AiStreamEvent =
+  | { type: 'token'; delta: string }
+  | { type: 'conversation'; conversation: AiConversationResponse }
+  | { type: 'error'; message: string };
