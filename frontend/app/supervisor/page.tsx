@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal } from '@/components/Modal';
+import { AiChatPanel } from '@/components/AiChatPanel';
 import { RequireAuth } from '@/components/RequireAuth';
 import { StageBadge } from '@/components/StageBadge';
 import { useAuth } from '@/hooks/useAuth';
@@ -315,6 +316,8 @@ function SupervisorView() {
           ))}
         </div>
       </section>
+
+      <AiChatPanel />
 
       <Modal
         open={Boolean(actionModal)}

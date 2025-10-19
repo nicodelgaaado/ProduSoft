@@ -81,3 +81,27 @@ export interface AuthUser {
   roles: string[];
 }
 
+export type AiMessageRole = 'USER' | 'ASSISTANT' | 'SYSTEM';
+
+export interface AiConversationSummaryResponse {
+  id: number;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastMessagePreview: string | null;
+}
+
+export interface AiMessageResponse {
+  id: number;
+  role: AiMessageRole;
+  content: string;
+  createdAt: string;
+}
+
+export interface AiConversationResponse {
+  id: number;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: AiMessageResponse[];
+}

@@ -1,4 +1,6 @@
 import type {
+  AiConversationResponse,
+  AiConversationSummaryResponse,
   AuthUser,
   OrderResponse,
   StageState,
@@ -129,4 +131,37 @@ export const WorkflowApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }, token),
+  listAiConversations: (token: string) =>
+    apiFetch<AiConversationSummaryResponse[]>('/api/ai/conversations', { method: 'GET' }, token),
+  createAiConversation: (payload: { title?: string | null; initialMessage: string }, token: string) =>
+    apiFetch<AiConversationResponse>(
+      '/api/ai/conversations',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token,
+    ),
+  getAiConversation: (conversationId: number, token: string) =>
+    apiFetch<AiConversationResponse>(`/api/ai/conversations/${conversationId}`, { method: 'GET' }, token),
+  sendAiMessage: (conversationId: number, content: string, token: string) =>
+    apiFetch<AiConversationResponse>(
+      `/api/ai/conversations/${conversationId}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      },
+      token,
+    ),
+  renameAiConversation: (conversationId: number, title: string, token: string) =>
+    apiFetch<AiConversationResponse>(
+      `/api/ai/conversations/${conversationId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ title }),
+      },
+      token,
+    ),
+  deleteAiConversation: (conversationId: number, token: string) =>
+    apiFetch<void>(`/api/ai/conversations/${conversationId}`, { method: 'DELETE' }, token),
 };
