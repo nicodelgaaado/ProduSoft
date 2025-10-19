@@ -1,8 +1,10 @@
 'use client';
 
+import { Button, Heading, InlineNotification, Stack, TextInput, Tile } from '@carbon/react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import styles from './login.module.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,52 +38,69 @@ export default function LoginPage() {
     clearError();
   }, [username, password, clearError]);
 
+  const busy = submitting || loading;
+
   return (
-    <section className="auth-card">
-      <h1>Sign in</h1>
-      <p className="auth-card__subtitle">Use your operator or supervisor account to continue.</p>
-      <form className="auth-card__form" onSubmit={handleSubmit}>
-        <label htmlFor="username">Username</label>
-        <input
-          id="username"
-          name="username"
-          type="text"
-          autoComplete="username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          placeholder="operator1"
-          required
-        />
+    <div className={styles.container}>
+      <Tile className={styles.card}>
+        <Stack gap={6}>
+          <div>
+            <Heading level={2}>Sign in</Heading>
+            <p className={styles.subtitle}>Use your operator or supervisor account to continue.</p>
+          </div>
 
-        <label htmlFor="password">Password</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          placeholder="******"
-          required
-        />
+          {error && (
+            <InlineNotification
+              kind="error"
+              lowContrast
+              title="Sign-in failed"
+              subtitle={error}
+              onClose={clearError}
+            />
+          )}
 
-        {error && <div className="form-error">{error}</div>}
+          <form className={styles.form} onSubmit={handleSubmit}>
+            <Stack gap={4}>
+              <TextInput
+                id="username"
+                name="username"
+                labelText="Username"
+                autoComplete="username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="operator1"
+                required
+              />
+              <TextInput
+                id="password"
+                name="password"
+                labelText="Password"
+                autoComplete="current-password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••"
+                required
+              />
+              <Button type="submit" kind="primary" size="lg" disabled={busy}>
+                {busy ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </Stack>
+          </form>
 
-        <button type="submit" disabled={submitting || loading}>
-          {submitting || loading ? 'Signing in...' : 'Sign in'}
-        </button>
-      </form>
-      <div className="auth-card__hint">
-        <p>Sample accounts:</p>
-        <ul>
-          <li>
-            Operator - <code>operator1 / user</code>
-          </li>
-          <li>
-            Supervisor - <code>supervisor1 / superuser</code>
-          </li>
-        </ul>
-      </div>
-    </section>
+          <div className={styles.hint}>
+            <p>Sample accounts:</p>
+            <ul>
+              <li>
+                Operator — <code>operator1 / user</code>
+              </li>
+              <li>
+                Supervisor — <code>supervisor1 / superuser</code>
+              </li>
+            </ul>
+          </div>
+        </Stack>
+      </Tile>
+    </div>
   );
 }

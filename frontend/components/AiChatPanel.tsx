@@ -1,4 +1,11 @@
+'use client';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Button, ContainedList, ContainedListItem, Heading, InlineLoading, InlineNotification, Layer, Stack, TextArea, Tile } from '@carbon/react';
+import { Add, Edit, Renew, Send, TrashCan } from '@carbon/icons-react';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAuth } from '@/hooks/useAuth';
 import { WorkflowApi } from '@/lib/api';
 import type {
@@ -6,9 +13,7 @@ import type {
   AiConversationSummaryResponse,
   AiMessageResponse,
 } from '@/types/api';
-import ReactMarkdown from 'react-markdown';
-import type { Components } from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import styles from './AiChatPanel.module.css';
 
 export function AiChatPanel() {
   const { token, user } = useAuth();
@@ -98,6 +103,10 @@ export function AiChatPanel() {
     setSelectedConversationId(null);
     setMessageInput('');
     setAutoSelectEnabled(false);
+  };
+
+  const handleRefresh = () => {
+    void loadConversations();
   };
 
   const handleSend = useCallback(async () => {
@@ -203,129 +212,207 @@ export function AiChatPanel() {
   const conversationTitle = activeConversation?.title?.trim() || 'Untitled conversation';
 
   return (
-    <section className="card chat-card">
-      <header className="card__header">
-        <div>
-          <h2>AI Assistant</h2>
-          <p className="muted">Ask for operational insights or guidance using your live data.</p>
-        </div>
-        <button type="button" className="ghost" onClick={handleNewConversation}>
-          New chat
-        </button>
-      </header>
-
-      {error && <div className="page-alert">{error}</div>}
-
-      <div className="chat-panel">
-        <div className="chat-panel__body">
-          <div className="chat-panel__body-header">
+    <Layer level={0}>
+      <Tile className={styles.panel}>
+        <Stack gap={6}>
+          <div className={styles.header}>
             <div>
-              <h3>{activeConversation ? conversationTitle : 'Start a conversation'}</h3>
-              <p className="muted">
-                {activeConversation
-                  ? `Updated ${formatRelative(activeConversation.updatedAt)}`
-                  : 'Ask about workloads, bottlenecks, or next steps to receive AI suggestions.'}
+              <Heading level={2}>AI Assistant</Heading>
+              <p className={styles.subtitle}>
+                Ask for operational insights or guidance using your live data.
               </p>
             </div>
-            {activeConversation && (
-              <div className="chat-panel__actions">
-                <button type="button" className="ghost" onClick={handleRename}>
-                  Rename
-                </button>
-                <button type="button" className="ghost danger" onClick={handleDelete}>
-                  Delete
-                </button>
-              </div>
-            )}
+            <Button kind="ghost" renderIcon={Add} onClick={handleNewConversation} type="button">
+              New chat
+            </Button>
           </div>
 
-          <div className="chat-panel__messages">
-            {loadingConversation && <div className="chat-panel__empty">Loading conversation...</div>}
-            {!loadingConversation && activeConversation && activeConversation.messages.length === 0 && (
-              <div className="chat-panel__empty">Send a question to begin.</div>
-            )}
-            {!loadingConversation && !activeConversation && (
-              <div className="chat-panel__empty">
-                Compose a message below to auto-create a new conversation. Your exchanges will stay available here.
-              </div>
-            )}
-            {!loadingConversation &&
-              activeConversation?.messages.map((message) => (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  currentUser={user?.username ?? 'You'}
-                />
-              ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <form className="chat-composer" onSubmit={handleComposerSubmit}>
-            <textarea
-              value={messageInput}
-              onChange={(event) => setMessageInput(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                hasToken
-                  ? 'Ask the assistant for help prioritising, summarising, or investigating work...'
-                  : 'Sign in to chat with the assistant.'
-              }
-              disabled={!hasToken || sending}
+          {error && (
+            <InlineNotification
+              kind="error"
+              lowContrast
+              title="There was a problem"
+              subtitle={error}
+              onClose={() => setError(null)}
             />
-            <button type="submit" disabled={!canSend}>
-              {sending ? 'Sending...' : 'Send'}
-            </button>
-          </form>
-        </div>
+          )}
 
-        <aside className="chat-panel__sidebar">
-          <div className="chat-panel__sidebar-header">
-            <span className="muted">
-              {loadingList
-                ? 'Loading conversations...'
-                : `${conversations.length} ${conversations.length === 1 ? 'thread' : 'threads'}`}
-            </span>
-          </div>
-          <div className="chat-panel__list">
-            {loadingList && conversations.length === 0 && <div className="chat-panel__empty">Loading...</div>}
-            {!loadingList && conversations.length === 0 && (
-              <div className="chat-panel__empty">
-                Start a new chat to capture questions and AI responses for later reference.
-              </div>
-            )}
-            {conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                className={`chat-list__item ${conversation.id === selectedConversationId ? 'active' : ''}`}
-                onClick={() => handleSelectConversation(conversation.id)}
-              >
-                <span className="chat-list__title">{conversation.title?.trim() || 'Untitled conversation'}</span>
-                {conversation.lastMessagePreview && (
-                  <span className="chat-list__preview">{conversation.lastMessagePreview}</span>
+          <div className={styles.layout}>
+            <Layer level={1}>
+              <Tile className={styles.conversationTile}>
+                <Stack gap={5}>
+                  <div className={styles.conversationHeader}>
+                    <div>
+                      <Heading level={3} className={styles.conversationTitle}>
+                        {activeConversation ? conversationTitle : 'Start a conversation'}
+                      </Heading>
+                      <p className={styles.conversationMeta}>
+                        {activeConversation
+                          ? `Updated ${formatRelative(activeConversation.updatedAt)}`
+                          : 'Ask about workloads, bottlenecks, or next steps to receive AI suggestions.'}
+                      </p>
+                    </div>
+                    {activeConversation && (
+                      <div className={styles.actions}>
+                        <Button
+                          kind="ghost"
+                          size="sm"
+                          renderIcon={Edit}
+                          onClick={handleRename}
+                          type="button"
+                        >
+                          Rename
+                        </Button>
+                        <Button
+                          kind="danger--ghost"
+                          size="sm"
+                          renderIcon={TrashCan}
+                          onClick={handleDelete}
+                          type="button"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={styles.messages} role="log" aria-live="polite">
+                    {loadingConversation && (
+                      <div className={styles.placeholder}>
+                        <InlineLoading status="active" description="Loading conversation" />
+                      </div>
+                    )}
+                    {!loadingConversation && activeConversation && activeConversation.messages.length === 0 && (
+                      <div className={styles.placeholder}>Send a question to begin.</div>
+                    )}
+                    {!loadingConversation && !activeConversation && (
+                      <div className={styles.placeholder}>
+                        Compose a message below to auto-create a new conversation. Your exchanges will stay available here.
+                      </div>
+                    )}
+                    {!loadingConversation &&
+                      activeConversation?.messages.map((message) => (
+                        <ChatMessage
+                          key={message.id}
+                          message={message}
+                          currentUser={user?.username ?? 'You'}
+                        />
+                      ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  <form className={styles.composer} onSubmit={handleComposerSubmit}>
+                    <TextArea
+                      labelText="Message"
+                      hideLabel
+                      value={messageInput}
+                      onChange={(event) => setMessageInput(event.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={
+                        hasToken
+                          ? 'Ask the assistant for help prioritising, summarising, or investigating work...'
+                          : 'Sign in to chat with the assistant.'
+                      }
+                      disabled={!hasToken || sending}
+                      rows={4}
+                    />
+                    <div className={styles.composerActions}>
+                      <Button
+                        type="submit"
+                        kind="primary"
+                        renderIcon={Send}
+                        disabled={!canSend}
+                      >
+                        {sending ? 'Sending…' : 'Send'}
+                      </Button>
+                    </div>
+                  </form>
+                </Stack>
+              </Tile>
+            </Layer>
+
+            <Layer level={1}>
+              <Tile className={styles.sidebar}>
+                <div className={styles.sidebarHeader}>
+                  <Heading level={4} className={styles.sidebarTitle}>
+                    Conversation history
+                  </Heading>
+                  <p className={styles.sidebarMeta}>
+                    {loadingList
+                      ? 'Loading conversations...'
+                      : `${conversations.length} ${conversations.length === 1 ? 'thread' : 'threads'}`}
+                  </p>
+                </div>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  renderIcon={Renew}
+                  onClick={handleRefresh}
+                  type="button"
+                  disabled={loadingList}
+                  className={styles.refresh}
+                >
+                  Refresh
+                </Button>
+                {loadingList && conversations.length === 0 ? (
+                  <div className={styles.placeholder}>
+                    <InlineLoading status="active" description="Loading conversations" />
+                  </div>
+                ) : !loadingList && conversations.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    Start a new chat to capture questions and AI responses for later reference.
+                  </div>
+                ) : (
+                  <ContainedList kind="on-page" className={styles.list}>
+                    {conversations.map((conversation) => {
+                      const isActive = conversation.id === selectedConversationId;
+                      const title = conversation.title?.trim() || 'Untitled conversation';
+                      return (
+                        <ContainedListItem
+                          key={conversation.id}
+                          onClick={() => handleSelectConversation(conversation.id)}
+                          className={`${styles.listItem} ${isActive ? styles.listItemActive : ''}`}
+                        >
+                          <div className={styles.listItemContent}>
+                            <span className={styles.listItemTitle}>{title}</span>
+                            {conversation.lastMessagePreview && (
+                              <span className={styles.listItemPreview}>{conversation.lastMessagePreview}</span>
+                            )}
+                            <span className={styles.listItemTime}>
+                              {formatRelative(conversation.updatedAt)}
+                            </span>
+                          </div>
+                        </ContainedListItem>
+                      );
+                    })}
+                  </ContainedList>
                 )}
-                <span className="chat-list__time">{formatRelative(conversation.updatedAt)}</span>
-              </button>
-            ))}
+              </Tile>
+            </Layer>
           </div>
-        </aside>
-      </div>
-    </section>
+        </Stack>
+      </Tile>
+    </Layer>
   );
 }
 
 function ChatMessage({ message, currentUser }: { message: AiMessageResponse; currentUser: string }) {
-  const roleClass = message.role.toLowerCase();
   const author =
     message.role === 'ASSISTANT' ? 'AI Assistant' : message.role === 'USER' ? currentUser : 'System';
+  const roleClass =
+    message.role === 'ASSISTANT'
+      ? styles.messageAssistant
+      : message.role === 'USER'
+        ? styles.messageUser
+        : styles.messageSystem;
 
   return (
-    <article className={`chat-message chat-message--${roleClass}`}>
-      <header className="chat-message__meta">
-        <span className="chat-message__author">{author}</span>
-        <span className="chat-message__timestamp">{formatTimestamp(message.createdAt)}</span>
+    <article className={`${styles.message} ${roleClass}`}>
+      <header className={styles.messageHeader}>
+        <span className={styles.messageAuthor}>{author}</span>
+        <span className={styles.messageTimestamp}>{formatTimestamp(message.createdAt)}</span>
       </header>
-      <div className="chat-message__body">
+      <div className={styles.messageBody}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
           {message.content}
         </ReactMarkdown>

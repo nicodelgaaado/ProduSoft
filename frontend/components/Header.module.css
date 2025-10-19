@@ -1,0 +1,14 @@
+.username {
+  color: var(--cds-text-on-color, #ffffff);
+  font-weight: 600;
+  margin-right: var(--cds-spacing-04, 1rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.username::before {
+  content: '•';
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
