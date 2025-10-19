@@ -1,5 +1,6 @@
 package com.produsoft.workflow.controller;
 
+import com.produsoft.workflow.exception.AiClientException;
 import com.produsoft.workflow.exception.InvalidStageActionException;
 import com.produsoft.workflow.exception.NotFoundException;
 import java.time.Instant;
@@ -28,6 +29,15 @@ public class RestExceptionHandler {
                 "timestamp", Instant.now(),
                 "message", ex.getMessage(),
                 "status", HttpStatus.BAD_REQUEST.value()));
+    }
+
+    @ExceptionHandler(AiClientException.class)
+    public ResponseEntity<Map<String, Object>> handleAiClient(AiClientException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+            .body(Map.of(
+                "timestamp", Instant.now(),
+                "message", ex.getMessage(),
+                "status", HttpStatus.BAD_GATEWAY.value()));
     }
 
     @ExceptionHandler(Exception.class)

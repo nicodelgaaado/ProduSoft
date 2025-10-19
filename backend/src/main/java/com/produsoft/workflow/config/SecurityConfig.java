@@ -42,6 +42,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/me").authenticated()
                 .requestMatchers("/api/supervisor/**").hasRole("SUPERVISOR")
                 .requestMatchers("/api/operator/**").hasRole("OPERATOR")
+                .requestMatchers("/api/ai/**").hasAnyRole("OPERATOR", "SUPERVISOR")
                 .requestMatchers("/api/orders/**").hasAnyRole("OPERATOR", "SUPERVISOR")
                 .anyRequest().authenticated())
             .httpBasic(Customizer.withDefaults());
