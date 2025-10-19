@@ -25,8 +25,8 @@ export function AiChatPanel() {
   const [messageInput, setMessageInput] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState<boolean>(false);
-  const [autoSelectEnabled, setAutoSelectEnabled] = useState<boolean>(true);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [autoSelectEnabled, setAutoSelectEnabled] = useState<boolean>(false);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const hasToken = Boolean(token);
   const messageCount = activeConversation?.messages.length ?? 0;
@@ -76,8 +76,14 @@ export function AiChatPanel() {
       setConversations([]);
       setActiveConversation(null);
       setSelectedConversationId(null);
+      setMessageInput('');
+      setAutoSelectEnabled(false);
       return;
     }
+    setActiveConversation(null);
+    setSelectedConversationId(null);
+    setMessageInput('');
+    setAutoSelectEnabled(false);
     loadConversations().catch((err) => console.error(err));
   }, [token, loadConversations]);
 
@@ -95,7 +101,11 @@ export function AiChatPanel() {
     if (messageCount === 0) {
       return;
     }
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return;
+    }
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
   }, [messageCount]);
 
   const handleNewConversation = () => {
@@ -276,7 +286,12 @@ export function AiChatPanel() {
                     )}
                   </div>
 
-                  <div className={styles.messages} role="log" aria-live="polite">
+                  <div
+                    className={styles.messages}
+                    role="log"
+                    aria-live="polite"
+                    ref={messagesContainerRef}
+                  >
                     {loadingConversation && (
                       <div className={styles.placeholder}>
                         <InlineLoading status="active" description="Loading conversation" />
@@ -298,7 +313,6 @@ export function AiChatPanel() {
                           currentUser={user?.username ?? 'You'}
                         />
                       ))}
-                    <div ref={messagesEndRef} />
                   </div>
 
                   <form className={styles.composer} onSubmit={handleComposerSubmit}>
