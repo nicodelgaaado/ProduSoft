@@ -16,18 +16,13 @@ import org.springframework.web.client.RestClientResponseException;
 @Service
 public class AiChatService {
 
-    private final RestClient restClient;
+    private final RestClient.Builder restClientBuilder;
     private final OllamaClientProperties properties;
+    private volatile RestClient restClient;
 
     public AiChatService(RestClient.Builder restClientBuilder, OllamaClientProperties properties) {
+        this.restClientBuilder = restClientBuilder;
         this.properties = properties;
-        String apiKey = properties.resolveApiKey()
-            .orElseThrow(() -> new AiClientException("OLLAMA_API_KEY is not configured."));
-        this.restClient = restClientBuilder
-            .baseUrl(properties.getHost())
-            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .build();
     }
 
     public AiChatResponse chat(AiChatRequest request) {
@@ -45,7 +40,7 @@ public class AiChatService {
             "stream", Boolean.FALSE
         );
         try {
-            OllamaChatResponse response = restClient.post()
+            OllamaChatResponse response = ensureClient().post()
                 .uri("/api/chat")
                 .body(payload)
                 .retrieve()
@@ -68,5 +63,27 @@ public class AiChatService {
     }
 
     private record OllamaMessage(String role, String content) {
+    }
+
+    private RestClient ensureClient() {
+        RestClient existing = restClient;
+        if (existing != null) {
+            return existing;
+        }
+        synchronized (this) {
+            if (restClient != null) {
+                return restClient;
+            }
+            String apiKey = properties.resolveApiKey()
+                .orElseThrow(() -> new AiClientException("""
+                    Ollama access is not configured. Set the OLLAMA_API_KEY environment variable or app.ai.ollama.api-key property.""".
+                    trim()));
+            restClient = restClientBuilder
+                .baseUrl(properties.getHost())
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+            return restClient;
+        }
     }
 }
