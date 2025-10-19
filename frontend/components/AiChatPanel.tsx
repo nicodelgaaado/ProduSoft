@@ -12,6 +12,7 @@ import type {
   AiConversationResponse,
   AiConversationSummaryResponse,
   AiMessageResponse,
+  AiStreamEvent,
 } from '@/types/api';
 import styles from './AiChatPanel.module.css';
 
@@ -27,6 +28,10 @@ export function AiChatPanel() {
   const [sending, setSending] = useState<boolean>(false);
   const [autoSelectEnabled, setAutoSelectEnabled] = useState<boolean>(false);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const tempIdRef = useRef<number>(-1);
+  const streamingControllerRef = useRef<AbortController | null>(null);
+  const streamingMessageIdRef = useRef<number | null>(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
 
   const hasToken = Boolean(token);
   const messageCount = activeConversation?.messages.length ?? 0;
@@ -78,8 +83,17 @@ export function AiChatPanel() {
       setSelectedConversationId(null);
       setMessageInput('');
       setAutoSelectEnabled(false);
+      streamingControllerRef.current?.abort();
+      streamingControllerRef.current = null;
+      streamingMessageIdRef.current = null;
+      setStreamingMessageId(null);
+      setSending(false);
       return;
     }
+    streamingControllerRef.current?.abort();
+    streamingControllerRef.current = null;
+    streamingMessageIdRef.current = null;
+    setStreamingMessageId(null);
     setActiveConversation(null);
     setSelectedConversationId(null);
     setMessageInput('');
@@ -98,6 +112,12 @@ export function AiChatPanel() {
   }, [conversations, token, selectedConversationId, autoSelectEnabled, openConversation]);
 
   useEffect(() => {
+    return () => {
+      streamingControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     if (messageCount === 0) {
       return;
     }
@@ -109,6 +129,11 @@ export function AiChatPanel() {
   }, [messageCount]);
 
   const handleNewConversation = () => {
+    streamingControllerRef.current?.abort();
+    streamingControllerRef.current = null;
+    streamingMessageIdRef.current = null;
+    setStreamingMessageId(null);
+    setSending(false);
     setActiveConversation(null);
     setSelectedConversationId(null);
     setMessageInput('');
@@ -124,31 +149,158 @@ export function AiChatPanel() {
       setError('You must be signed in to chat with the assistant.');
       return;
     }
+    if (sending) {
+      return;
+    }
     const trimmed = messageInput.trim();
     if (!trimmed) {
       return;
     }
+
     setSending(true);
     setError(null);
+
+    const timestamp = new Date().toISOString();
+    let targetConversationId = selectedConversationId;
+    let seedConversation: AiConversationResponse | null = null;
+    let assistantMessageId: number | null = null;
+    let refreshedConversations = false;
+
     try {
-      let response: AiConversationResponse;
-      if (selectedConversationId) {
-        response = await WorkflowApi.sendAiMessage(selectedConversationId, trimmed, token);
-      } else {
-        response = await WorkflowApi.createAiConversation({ initialMessage: trimmed }, token);
+      if (!targetConversationId) {
+        const created = await WorkflowApi.createAiConversation({ title: null }, token);
+        targetConversationId = created.id;
+        seedConversation = created;
+        setSelectedConversationId(created.id);
       }
-      setActiveConversation(response);
-      setSelectedConversationId(response.id);
-      setAutoSelectEnabled(true);
+
+      if (!targetConversationId) {
+        throw new Error('Unable to identify the conversation to send this message.');
+      }
+
+      const userMessageId = tempIdRef.current--;
+      assistantMessageId = tempIdRef.current--;
+
+      const userMessage: AiMessageResponse = {
+        id: userMessageId,
+        role: 'USER',
+        content: trimmed,
+        createdAt: timestamp,
+      };
+      const assistantPlaceholder: AiMessageResponse = {
+        id: assistantMessageId,
+        role: 'ASSISTANT',
+        content: '',
+        createdAt: timestamp,
+      };
+
+      setActiveConversation((prev) => {
+        if (prev && prev.id === targetConversationId) {
+          return {
+            ...prev,
+            messages: [...prev.messages, userMessage, assistantPlaceholder],
+            updatedAt: timestamp,
+          };
+        }
+        const seed = seedConversation ?? {
+          id: targetConversationId,
+          title: prev?.title ?? null,
+          createdAt: prev?.createdAt ?? timestamp,
+          updatedAt: timestamp,
+          messages: [],
+        };
+        return {
+          ...seed,
+          messages: [...(seed.messages ?? []), userMessage, assistantPlaceholder],
+          updatedAt: timestamp,
+        };
+      });
+
       setMessageInput('');
-      await loadConversations();
+      setAutoSelectEnabled(true);
+
+      streamingMessageIdRef.current = assistantMessageId;
+      setStreamingMessageId(assistantMessageId);
+
+      const controller = new AbortController();
+      streamingControllerRef.current = controller;
+
+      await WorkflowApi.streamAiMessage(
+        targetConversationId,
+        trimmed,
+        token,
+        (event: AiStreamEvent) => {
+          if (event.type === 'token') {
+            setActiveConversation((prev) => {
+              if (!prev || prev.id !== targetConversationId || streamingMessageIdRef.current === null) {
+                return prev;
+              }
+              return {
+                ...prev,
+                messages: prev.messages.map((message) =>
+                  message.id === streamingMessageIdRef.current
+                    ? { ...message, content: message.content + event.delta }
+                    : message,
+                ),
+              };
+            });
+          } else if (event.type === 'conversation') {
+            streamingMessageIdRef.current = null;
+            setStreamingMessageId(null);
+            setActiveConversation(event.conversation);
+            setSelectedConversationId(event.conversation.id);
+            setAutoSelectEnabled(true);
+            refreshedConversations = true;
+            void loadConversations();
+          } else if (event.type === 'error') {
+            streamingMessageIdRef.current = null;
+            setStreamingMessageId(null);
+            setError(event.message);
+            setActiveConversation((prev) => {
+              if (!prev || prev.id !== targetConversationId || assistantMessageId === null) {
+                return prev;
+              }
+              return {
+                ...prev,
+                messages: prev.messages.filter((message) => message.id !== assistantMessageId),
+              };
+            });
+            refreshedConversations = true;
+            void loadConversations();
+          }
+        },
+        controller.signal,
+      );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send message';
-      setError(message);
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
+        const message = err instanceof Error ? err.message : 'Failed to send message';
+        setError(message);
+        refreshedConversations = true;
+        void loadConversations();
+      }
+      if (assistantMessageId !== null) {
+        const placeholderId = assistantMessageId;
+        const conversationIdForRemoval = targetConversationId;
+        setActiveConversation((prev) => {
+          if (!prev || prev.id !== conversationIdForRemoval) {
+            return prev;
+          }
+          return {
+            ...prev,
+            messages: prev.messages.filter((message) => message.id !== placeholderId),
+          };
+        });
+      }
     } finally {
+      streamingControllerRef.current = null;
+      streamingMessageIdRef.current = null;
+      setStreamingMessageId(null);
       setSending(false);
+      if (!refreshedConversations) {
+        void loadConversations();
+      }
     }
-  }, [messageInput, selectedConversationId, token, loadConversations]);
+  }, [token, sending, messageInput, selectedConversationId, loadConversations]);
 
   const handleComposerSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -195,6 +347,11 @@ export function AiChatPanel() {
     if (!confirmed) {
       return;
     }
+    streamingControllerRef.current?.abort();
+    streamingControllerRef.current = null;
+    streamingMessageIdRef.current = null;
+    setStreamingMessageId(null);
+    setSending(false);
     setError(null);
     try {
       await WorkflowApi.deleteAiConversation(activeConversation.id, token);
@@ -210,6 +367,11 @@ export function AiChatPanel() {
   };
 
   const handleSelectConversation = (conversationId: number) => {
+    streamingControllerRef.current?.abort();
+    streamingControllerRef.current = null;
+    streamingMessageIdRef.current = null;
+    setStreamingMessageId(null);
+    setSending(false);
     setAutoSelectEnabled(true);
     openConversation(conversationId).catch((err) => console.error(err));
   };
@@ -311,6 +473,7 @@ export function AiChatPanel() {
                           key={message.id}
                           message={message}
                           currentUser={user?.username ?? 'You'}
+                          isStreaming={message.id === streamingMessageId}
                         />
                       ))}
                   </div>
@@ -337,7 +500,7 @@ export function AiChatPanel() {
                         renderIcon={Send}
                         disabled={!canSend}
                       >
-                        {sending ? 'Sending…' : 'Send'}
+                        {sending ? 'Sending...' : 'Send'}
                       </Button>
                     </div>
                   </form>
@@ -408,7 +571,15 @@ export function AiChatPanel() {
   );
 }
 
-function ChatMessage({ message, currentUser }: { message: AiMessageResponse; currentUser: string }) {
+function ChatMessage({
+  message,
+  currentUser,
+  isStreaming = false,
+}: {
+  message: AiMessageResponse;
+  currentUser: string;
+  isStreaming?: boolean;
+}) {
   const author =
     message.role === 'ASSISTANT' ? 'AI Assistant' : message.role === 'USER' ? currentUser : 'System';
   const roleClass =
@@ -428,6 +599,7 @@ function ChatMessage({ message, currentUser }: { message: AiMessageResponse; cur
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
           {message.content}
         </ReactMarkdown>
+        {isStreaming && <span className={styles.typingCaret} aria-hidden="true" />}
       </div>
     </article>
   );

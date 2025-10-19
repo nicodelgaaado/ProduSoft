@@ -12,6 +12,7 @@ import com.produsoft.workflow.service.AiConversationService;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -57,11 +59,18 @@ public class AiController {
         return conversationService.getConversation(authentication.getName(), conversationId);
     }
 
-    @PostMapping("/conversations/{conversationId}/messages")
+    @PostMapping(value = "/conversations/{conversationId}/messages", produces = MediaType.APPLICATION_JSON_VALUE)
     public AiConversationResponse sendMessage(Authentication authentication,
                                               @PathVariable Long conversationId,
                                               @Valid @RequestBody SendMessageRequest request) {
         return conversationService.sendMessage(authentication.getName(), conversationId, request);
+    }
+
+    @PostMapping(value = "/conversations/{conversationId}/messages", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamMessage(Authentication authentication,
+                                    @PathVariable Long conversationId,
+                                    @Valid @RequestBody SendMessageRequest request) {
+        return conversationService.streamMessage(authentication.getName(), conversationId, request);
     }
 
     @PatchMapping("/conversations/{conversationId}")

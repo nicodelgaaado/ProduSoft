@@ -146,6 +146,26 @@
   text-decoration: underline;
 }
 
+.typingCaret {
+  display: inline-block;
+  width: 0.5ch;
+  height: 1em;
+  margin-left: 0.15rem;
+  background: currentColor;
+  animation: typingCaretBlink 1s steps(2, start) infinite;
+  vertical-align: baseline;
+}
+
+@keyframes typingCaretBlink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .composer {
   display: flex;
   flex-direction: column;

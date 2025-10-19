@@ -8,6 +8,7 @@ import type {
   WipSummaryResponse,
   WorkQueueItem,
   OrderStageStatus,
+  AiStreamEvent,
 } from '@/types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
@@ -133,7 +134,10 @@ export const WorkflowApi = {
     }, token),
   listAiConversations: (token: string) =>
     apiFetch<AiConversationSummaryResponse[]>('/api/ai/conversations', { method: 'GET' }, token),
-  createAiConversation: (payload: { title?: string | null; initialMessage: string }, token: string) =>
+  createAiConversation: (
+    payload: { title?: string | null; initialMessage?: string | null },
+    token: string,
+  ) =>
     apiFetch<AiConversationResponse>(
       '/api/ai/conversations',
       {
@@ -153,6 +157,79 @@ export const WorkflowApi = {
       },
       token,
     ),
+  streamAiMessage: async (
+    conversationId: number,
+    content: string,
+    token: string,
+    onEvent: (event: AiStreamEvent) => void,
+    signal?: AbortSignal,
+  ) => {
+    const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+        Authorization: `Basic ${token}`,
+      },
+      body: JSON.stringify({ content }),
+      signal,
+    });
+
+    if (!response.ok) {
+      let errorMessage = response.statusText || 'Request failed';
+      try {
+        const payload = (await response.json()) as { message?: string };
+        if (payload?.message) {
+          errorMessage = payload.message;
+        }
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) {
+            errorMessage = text;
+          }
+        } catch {
+          // ignore secondary parsing errors
+        }
+      }
+      throw new Error(errorMessage || 'Failed to start streaming response');
+    }
+
+    if (!response.body) {
+      throw new Error('This browser does not support streaming responses.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const processBuffer = () => {
+      let separatorIndex: number;
+      while ((separatorIndex = buffer.indexOf('\n\n')) !== -1) {
+        const chunk = buffer.slice(0, separatorIndex);
+        buffer = buffer.slice(separatorIndex + 2);
+        emitStreamEvent(chunk, onEvent);
+      }
+    };
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        processBuffer();
+      }
+      buffer += decoder.decode();
+      processBuffer();
+      if (buffer.trim()) {
+        emitStreamEvent(buffer, onEvent);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
   renameAiConversation: (conversationId: number, title: string, token: string) =>
     apiFetch<AiConversationResponse>(
       `/api/ai/conversations/${conversationId}`,
@@ -165,3 +242,90 @@ export const WorkflowApi = {
   deleteAiConversation: (conversationId: number, token: string) =>
     apiFetch<void>(`/api/ai/conversations/${conversationId}`, { method: 'DELETE' }, token),
 };
+
+function emitStreamEvent(rawChunk: string, onEvent: (event: AiStreamEvent) => void) {
+  const parsed = parseSseChunk(rawChunk);
+  if (!parsed) {
+    return;
+  }
+  const event = mapToStreamEvent(parsed);
+  if (event) {
+    onEvent(event);
+  }
+}
+
+function parseSseChunk(chunk: string): { event: string; data: unknown } | null {
+  if (!chunk) {
+    return null;
+  }
+  const lines = chunk.split('\n');
+  let eventName = 'message';
+  const dataLines: string[] = [];
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    if (!line) {
+      continue;
+    }
+    if (line.startsWith(':')) {
+      continue;
+    }
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim();
+      continue;
+    }
+    if (line.startsWith('data:')) {
+      const value = line.slice(5);
+      dataLines.push(value.startsWith(' ') ? value.slice(1) : value);
+    }
+  }
+
+  if (dataLines.length === 0) {
+    return null;
+  }
+
+  const payload = dataLines.join('\n');
+  let data: unknown = payload;
+  if (payload) {
+    try {
+      data = JSON.parse(payload);
+    } catch {
+      data = payload;
+    }
+  }
+  return { event: eventName || 'message', data };
+}
+
+function mapToStreamEvent(parsed: { event: string; data: unknown }): AiStreamEvent | null {
+  switch (parsed.event) {
+    case 'token':
+      if (typeof parsed.data === 'string') {
+        return { type: 'token', delta: parsed.data };
+      }
+      if (parsed.data && typeof parsed.data === 'object' && 'delta' in parsed.data) {
+        const delta = (parsed.data as { delta?: unknown }).delta;
+        if (typeof delta === 'string') {
+          return { type: 'token', delta };
+        }
+      }
+      return null;
+    case 'conversation':
+      if (parsed.data && typeof parsed.data === 'object') {
+        return { type: 'conversation', conversation: parsed.data as AiConversationResponse };
+      }
+      return null;
+    case 'error':
+      if (typeof parsed.data === 'string') {
+        return { type: 'error', message: parsed.data };
+      }
+      if (parsed.data && typeof parsed.data === 'object' && 'message' in parsed.data) {
+        const message = (parsed.data as { message?: unknown }).message;
+        if (typeof message === 'string') {
+          return { type: 'error', message };
+        }
+      }
+      return { type: 'error', message: 'An unknown error occurred while streaming the response.' };
+    default:
+      return null;
+  }
+}
