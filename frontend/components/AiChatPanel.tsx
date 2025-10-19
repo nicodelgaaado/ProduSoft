@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, ContainedList, ContainedListItem, Heading, InlineLoading, InlineNotification, Layer, Stack, TextArea, Tile } from '@carbon/react';
+import { Button, ContainedList, ContainedListItem, InlineLoading, InlineNotification, Layer, Stack, Text, TextArea, Tile } from '@carbon/react';
 import { Add, Edit, Renew, Send, TrashCan } from '@carbon/icons-react';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
@@ -217,7 +217,9 @@ export function AiChatPanel() {
         <Stack gap={6}>
           <div className={styles.header}>
             <div>
-              <Heading level={2}>AI Assistant</Heading>
+              <Text as="h2" className="cds--heading-05">
+                AI Assistant
+              </Text>
               <p className={styles.subtitle}>
                 Ask for operational insights or guidance using your live data.
               </p>
@@ -243,9 +245,9 @@ export function AiChatPanel() {
                 <Stack gap={5}>
                   <div className={styles.conversationHeader}>
                     <div>
-                      <Heading level={3} className={styles.conversationTitle}>
+                      <Text as="h3" className={`${styles.conversationTitle} cds--heading-04`}>
                         {activeConversation ? conversationTitle : 'Start a conversation'}
-                      </Heading>
+                      </Text>
                       <p className={styles.conversationMeta}>
                         {activeConversation
                           ? `Updated ${formatRelative(activeConversation.updatedAt)}`
@@ -334,9 +336,9 @@ export function AiChatPanel() {
             <Layer level={1}>
               <Tile className={styles.sidebar}>
                 <div className={styles.sidebarHeader}>
-                  <Heading level={4} className={styles.sidebarTitle}>
+                  <Text as="h4" className={`${styles.sidebarTitle} cds--heading-03`}>
                     Conversation history
-                  </Heading>
+                  </Text>
                   <p className={styles.sidebarMeta}>
                     {loadingList
                       ? 'Loading conversations...'
