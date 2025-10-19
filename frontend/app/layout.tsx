@@ -1,10 +1,14 @@
 ﻿import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { IBM_Plex_Sans } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import { Header } from '@/components/Header';
+import '@carbon/styles/css/styles.min.css';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const plexSans = IBM_Plex_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+});
 
 export const metadata: Metadata = {
   title: 'ProduSoft',
@@ -18,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={plexSans.className} data-carbon-theme="g10" suppressHydrationWarning>
         <AuthProvider>
           <Header />
           <main className="app-main">{children}</main>

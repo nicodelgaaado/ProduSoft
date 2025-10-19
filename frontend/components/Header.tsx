@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Header as CarbonHeader, HeaderGlobalAction, HeaderGlobalBar, HeaderMenuItem, HeaderNavigation, HeaderName, SkipToContent, Theme } from '@carbon/react';
+import { Logout } from '@carbon/icons-react';
 import { useAuth } from '@/hooks/useAuth';
+import styles from './Header.module.css';
 
 const navLinks = [
   { href: '/operator', label: 'Operator Console', roles: ['OPERATOR'] },
@@ -24,28 +27,42 @@ export function Header() {
   };
 
   return (
-    <header className="app-header">
-      <div className="app-header__brand">ProduSoft</div>
-      <nav className="app-header__nav">
-        {visibleLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={pathname === link.href ? 'active' : ''}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-      {user && (
-        <div className="app-header__user">
-          <span>{user.username}</span>
-          <button type="button" onClick={handleLogout} className="link-button">
-            Log out
-          </button>
-        </div>
-      )}
-    </header>
+    <Theme theme="g100">
+      <CarbonHeader aria-label="ProduSoft console">
+        <SkipToContent />
+        <HeaderName href="/" prefix="ProduSoft">
+          Workflow
+        </HeaderName>
+        {visibleLinks.length > 0 && (
+          <HeaderNavigation aria-label="ProduSoft navigation">
+            {visibleLinks.map((link) => (
+              <HeaderMenuItem
+                key={link.href}
+                as={Link}
+                href={link.href}
+                isCurrentPage={pathname === link.href}
+              >
+                {link.label}
+              </HeaderMenuItem>
+            ))}
+          </HeaderNavigation>
+        )}
+        <HeaderGlobalBar>
+          {user && (
+            <>
+              <span className={styles.username}>{user.username}</span>
+              <HeaderGlobalAction
+                aria-label="Log out"
+                tooltipAlignment="end"
+                onClick={handleLogout}
+              >
+                <Logout size={20} />
+              </HeaderGlobalAction>
+            </>
+          )}
+        </HeaderGlobalBar>
+      </CarbonHeader>
+    </Theme>
   );
 }
 

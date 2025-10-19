@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { InlineLoading } from '@carbon/react';
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,7 +34,7 @@ export function RequireAuth({ allowedRoles, children }: RequireAuthProps) {
   if (loading) {
     return (
       <div className="page-status" role="status">
-        Checking access...
+        <InlineLoading status="active" description="Checking access" />
       </div>
     );
   }
