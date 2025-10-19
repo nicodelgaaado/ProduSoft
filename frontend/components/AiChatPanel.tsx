@@ -161,22 +161,23 @@ export function AiChatPanel() {
     setError(null);
 
     const timestamp = new Date().toISOString();
-    let targetConversationId = selectedConversationId;
+    let conversationId = selectedConversationId;
     let seedConversation: AiConversationResponse | null = null;
     let assistantMessageId: number | null = null;
     let refreshedConversations = false;
 
     try {
-      if (!targetConversationId) {
+      if (conversationId == null) {
         const created = await WorkflowApi.createAiConversation({ title: null }, token);
-        targetConversationId = created.id;
+        conversationId = created.id;
         seedConversation = created;
         setSelectedConversationId(created.id);
       }
 
-      if (!targetConversationId) {
+      if (conversationId == null) {
         throw new Error('Unable to identify the conversation to send this message.');
       }
+      const ensuredConversationId = conversationId;
 
       const userMessageId = tempIdRef.current--;
       assistantMessageId = tempIdRef.current--;
@@ -195,23 +196,24 @@ export function AiChatPanel() {
       };
 
       setActiveConversation((prev) => {
-        if (prev && prev.id === targetConversationId) {
+        if (prev && prev.id === ensuredConversationId) {
           return {
             ...prev,
             messages: [...prev.messages, userMessage, assistantPlaceholder],
             updatedAt: timestamp,
           };
         }
-        const seed = seedConversation ?? {
-          id: targetConversationId,
-          title: prev?.title ?? null,
-          createdAt: prev?.createdAt ?? timestamp,
-          updatedAt: timestamp,
-          messages: [],
-        };
+        const seed: AiConversationResponse =
+          seedConversation ?? {
+            id: ensuredConversationId,
+            title: null,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            messages: [],
+          };
         return {
           ...seed,
-          messages: [...(seed.messages ?? []), userMessage, assistantPlaceholder],
+          messages: [...seed.messages, userMessage, assistantPlaceholder],
           updatedAt: timestamp,
         };
       });
@@ -226,13 +228,13 @@ export function AiChatPanel() {
       streamingControllerRef.current = controller;
 
       await WorkflowApi.streamAiMessage(
-        targetConversationId,
+        ensuredConversationId,
         trimmed,
         token,
         (event: AiStreamEvent) => {
           if (event.type === 'token') {
             setActiveConversation((prev) => {
-              if (!prev || prev.id !== targetConversationId || streamingMessageIdRef.current === null) {
+              if (!prev || prev.id !== ensuredConversationId || streamingMessageIdRef.current === null) {
                 return prev;
               }
               return {
@@ -257,7 +259,7 @@ export function AiChatPanel() {
             setStreamingMessageId(null);
             setError(event.message);
             setActiveConversation((prev) => {
-              if (!prev || prev.id !== targetConversationId || assistantMessageId === null) {
+              if (!prev || prev.id !== ensuredConversationId || assistantMessageId === null) {
                 return prev;
               }
               return {
@@ -280,7 +282,7 @@ export function AiChatPanel() {
       }
       if (assistantMessageId !== null) {
         const placeholderId = assistantMessageId;
-        const conversationIdForRemoval = targetConversationId;
+        const conversationIdForRemoval = conversationId;
         setActiveConversation((prev) => {
           if (!prev || prev.id !== conversationIdForRemoval) {
             return prev;
