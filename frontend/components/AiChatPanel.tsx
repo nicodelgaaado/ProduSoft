@@ -6,6 +6,9 @@ import type {
   AiConversationSummaryResponse,
   AiMessageResponse,
 } from '@/types/api';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export function AiChatPanel() {
   const { token, user } = useAuth();
@@ -322,10 +325,20 @@ function ChatMessage({ message, currentUser }: { message: AiMessageResponse; cur
         <span className="chat-message__author">{author}</span>
         <span className="chat-message__timestamp">{formatTimestamp(message.createdAt)}</span>
       </header>
-      <p>{message.content}</p>
+      <div className="chat-message__body">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+          {message.content}
+        </ReactMarkdown>
+      </div>
     </article>
   );
 }
+
+const markdownComponents: Components = {
+  a(props) {
+    return <a {...props} target="_blank" rel="noopener noreferrer" />;
+  },
+};
 
 function formatRelative(iso: string) {
   const date = new Date(iso);
