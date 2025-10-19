@@ -573,12 +573,12 @@ textarea {
 }
 
 .chat-panel__sidebar {
-  flex: 0 0 260px;
+  flex: 0 0 240px;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  border-right: 1px solid var(--border);
-  padding-right: 1.25rem;
+  border-left: 1px solid var(--border);
+  padding-left: 1.25rem;
 }
 
 .chat-panel__sidebar-header {
@@ -786,10 +786,10 @@ textarea {
 
   .chat-panel__sidebar {
     flex: none;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    padding-right: 0;
-    padding-bottom: 1rem;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 1rem;
   }
 
   .chat-panel__messages {

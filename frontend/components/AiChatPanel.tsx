@@ -214,38 +214,6 @@ export function AiChatPanel() {
       {error && <div className="page-alert">{error}</div>}
 
       <div className="chat-panel">
-        <aside className="chat-panel__sidebar">
-          <div className="chat-panel__sidebar-header">
-            <span className="muted">
-              {loadingList
-                ? 'Loading conversations...'
-                : `${conversations.length} ${conversations.length === 1 ? 'thread' : 'threads'}`}
-            </span>
-          </div>
-          <div className="chat-panel__list">
-            {loadingList && conversations.length === 0 && <div className="chat-panel__empty">Loading...</div>}
-            {!loadingList && conversations.length === 0 && (
-              <div className="chat-panel__empty">
-                Start a new chat to capture questions and AI responses for later reference.
-              </div>
-            )}
-            {conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                className={`chat-list__item ${conversation.id === selectedConversationId ? 'active' : ''}`}
-                onClick={() => handleSelectConversation(conversation.id)}
-              >
-                <span className="chat-list__title">{conversation.title?.trim() || 'Untitled conversation'}</span>
-                {conversation.lastMessagePreview && (
-                  <span className="chat-list__preview">{conversation.lastMessagePreview}</span>
-                )}
-                <span className="chat-list__time">{formatRelative(conversation.updatedAt)}</span>
-              </button>
-            ))}
-          </div>
-        </aside>
-
         <div className="chat-panel__body">
           <div className="chat-panel__body-header">
             <div>
@@ -306,6 +274,38 @@ export function AiChatPanel() {
             </button>
           </form>
         </div>
+
+        <aside className="chat-panel__sidebar">
+          <div className="chat-panel__sidebar-header">
+            <span className="muted">
+              {loadingList
+                ? 'Loading conversations...'
+                : `${conversations.length} ${conversations.length === 1 ? 'thread' : 'threads'}`}
+            </span>
+          </div>
+          <div className="chat-panel__list">
+            {loadingList && conversations.length === 0 && <div className="chat-panel__empty">Loading...</div>}
+            {!loadingList && conversations.length === 0 && (
+              <div className="chat-panel__empty">
+                Start a new chat to capture questions and AI responses for later reference.
+              </div>
+            )}
+            {conversations.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                className={`chat-list__item ${conversation.id === selectedConversationId ? 'active' : ''}`}
+                onClick={() => handleSelectConversation(conversation.id)}
+              >
+                <span className="chat-list__title">{conversation.title?.trim() || 'Untitled conversation'}</span>
+                {conversation.lastMessagePreview && (
+                  <span className="chat-list__preview">{conversation.lastMessagePreview}</span>
+                )}
+                <span className="chat-list__time">{formatRelative(conversation.updatedAt)}</span>
+              </button>
+            ))}
+          </div>
+        </aside>
       </div>
     </section>
   );
@@ -357,4 +357,3 @@ function formatTimestamp(iso: string) {
   }
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-
