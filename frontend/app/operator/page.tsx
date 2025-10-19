@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RequireAuth } from '@/components/RequireAuth';
 import { Modal } from '@/components/Modal';
 import { StageBadge } from '@/components/StageBadge';
+import { AiChatPanel } from '@/components/AiChatPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { WorkflowApi } from '@/lib/api';
 import type { ChecklistItem, StageType, WorkQueueItem } from '@/types/api';
@@ -368,6 +369,8 @@ function OperatorView() {
           </div>
         </div>
       </section>
+
+      <AiChatPanel />
 
       <Modal
         open={modalState?.type === 'claim'}
