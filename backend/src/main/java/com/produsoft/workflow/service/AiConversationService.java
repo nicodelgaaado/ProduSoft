@@ -31,15 +31,18 @@ public class AiConversationService {
     private final AiMessageRepository messageRepository;
     private final AiChatService aiChatService;
     private final AiConversationMapper mapper;
+    private final AiContextService contextService;
 
     public AiConversationService(AiConversationRepository conversationRepository,
                                  AiMessageRepository messageRepository,
                                  AiChatService aiChatService,
-                                 AiConversationMapper mapper) {
+                                 AiConversationMapper mapper,
+                                 AiContextService contextService) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.aiChatService = aiChatService;
         this.mapper = mapper;
+        this.contextService = contextService;
     }
 
     public List<AiConversationSummaryResponse> listConversations(String username) {
@@ -97,9 +100,12 @@ public class AiConversationService {
         }
 
         List<AiChatRequest.Message> history = buildHistoryMessages(conversation);
+        List<AiChatRequest.Message> messages = new ArrayList<>();
+        messages.add(contextService.buildContextMessage());
+        messages.addAll(history);
         AiChatResponse aiResponse = aiChatService.chat(new AiChatRequest(
             null,
-            history,
+            messages,
             Boolean.FALSE
         ));
 
