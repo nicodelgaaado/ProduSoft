@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Heading, InlineNotification, Stack, TextInput, Tile } from '@carbon/react';
+import { Button, InlineNotification, Stack, Text, TextInput, Tile } from '@carbon/react';
 import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,7 +45,9 @@ export default function LoginPage() {
       <Tile className={styles.card}>
         <Stack gap={6}>
           <div>
-            <Heading level={2}>Sign in</Heading>
+            <Text as="h2" className="cds--heading-05">
+              Sign in
+            </Text>
             <p className={styles.subtitle}>Use your operator or supervisor account to continue.</p>
           </div>
 
