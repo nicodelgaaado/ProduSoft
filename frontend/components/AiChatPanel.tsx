@@ -1,8 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, ContainedList, ContainedListItem, InlineLoading, InlineNotification, Layer, Stack, TextArea, Tile } from '@carbon/react';
-import { Add, Edit, Renew, Send, TrashCan } from '@carbon/icons-react';
+import {
+  Button,
+  ContainedList,
+  ContainedListItem,
+  InlineLoading,
+  InlineNotification,
+  Layer,
+  OverflowMenu,
+  OverflowMenuItem,
+  Stack,
+  TextArea,
+  Tile,
+} from '@carbon/react';
+import { Add, Renew, Send } from '@carbon/icons-react';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -316,11 +328,12 @@ export function AiChatPanel() {
     }
   };
 
-  const handleRename = async () => {
-    if (!token || !activeConversation) {
+  const handleRename = async (conversation: AiConversationSummaryResponse) => {
+    if (!token) {
       return;
     }
-    const currentTitle = activeConversation.title ?? '';
+    const currentTitle =
+      (conversation.id === activeConversation?.id ? activeConversation.title : conversation.title) ?? '';
     const nextTitle = window.prompt('Conversation title', currentTitle) ?? undefined;
     if (nextTitle === undefined) {
       return;
@@ -332,8 +345,10 @@ export function AiChatPanel() {
     }
     setError(null);
     try {
-      const response = await WorkflowApi.renameAiConversation(activeConversation.id, trimmed, token);
-      setActiveConversation(response);
+      const response = await WorkflowApi.renameAiConversation(conversation.id, trimmed, token);
+      if (activeConversation?.id === conversation.id) {
+        setActiveConversation(response);
+      }
       await loadConversations();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to rename conversation';
@@ -341,26 +356,30 @@ export function AiChatPanel() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!token || !activeConversation) {
+  const handleDelete = async (conversation: AiConversationSummaryResponse) => {
+    if (!token) {
       return;
     }
     const confirmed = window.confirm('Delete this conversation?');
     if (!confirmed) {
       return;
     }
-    streamingControllerRef.current?.abort();
-    streamingControllerRef.current = null;
-    streamingMessageIdRef.current = null;
-    setStreamingMessageId(null);
-    setSending(false);
+    if (activeConversation?.id === conversation.id) {
+      streamingControllerRef.current?.abort();
+      streamingControllerRef.current = null;
+      streamingMessageIdRef.current = null;
+      setStreamingMessageId(null);
+      setSending(false);
+    }
     setError(null);
     try {
-      await WorkflowApi.deleteAiConversation(activeConversation.id, token);
-      setActiveConversation(null);
-      setSelectedConversationId(null);
-      setMessageInput('');
-      setAutoSelectEnabled(true);
+      await WorkflowApi.deleteAiConversation(conversation.id, token);
+      if (activeConversation?.id === conversation.id) {
+        setActiveConversation(null);
+        setSelectedConversationId(null);
+        setMessageInput('');
+        setAutoSelectEnabled(true);
+      }
       await loadConversations();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete conversation';
@@ -426,28 +445,6 @@ export function AiChatPanel() {
                           : 'Ask about workloads, bottlenecks, or next steps to receive AI suggestions.'}
                       </p>
                     </div>
-                    {activeConversation && (
-                      <div className={styles.actions}>
-                        <Button
-                          kind="ghost"
-                          size="sm"
-                          renderIcon={Edit}
-                          onClick={handleRename}
-                          type="button"
-                        >
-                          Rename
-                        </Button>
-                        <Button
-                          kind="danger--ghost"
-                          size="sm"
-                          renderIcon={TrashCan}
-                          onClick={handleDelete}
-                          type="button"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    )}
                   </div>
 
                   <div
@@ -551,17 +548,33 @@ export function AiChatPanel() {
                           className={`${styles.listItem} ${isActive ? styles.listItemActive : ''}`}
                         >
                           <div className={styles.listItemContent}>
-                            <span className={styles.listItemTitle}>{title}</span>
-                            {conversation.lastMessagePreview && (
-                              <div className={styles.listItemPreview}>
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={markdownComponents}
-                                >
-                                  {conversation.lastMessagePreview}
-                                </ReactMarkdown>
+                            <div className={styles.listItemHeader}>
+                              <span className={styles.listItemTitle}>{title}</span>
+                              <div
+                                className={styles.listItemMenu}
+                                onClick={(event) => event.stopPropagation()}
+                                onKeyDown={(event) => event.stopPropagation()}
+                              >
+                                <OverflowMenu ariaLabel="Conversation actions" size="sm" flipped>
+                                  <OverflowMenuItem
+                                    itemText="Rename"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void handleRename(conversation);
+                                    }}
+                                  />
+                                  <OverflowMenuItem
+                                    hasDivider
+                                    isDelete
+                                    itemText="Delete"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void handleDelete(conversation);
+                                    }}
+                                  />
+                                </OverflowMenu>
                               </div>
-                            )}
+                            </div>
                             <span className={styles.listItemTime}>
                               {formatRelative(conversation.updatedAt)}
                             </span>
