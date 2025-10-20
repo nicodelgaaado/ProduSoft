@@ -394,6 +394,111 @@ button.ghost:hover {
   gap: 0.75rem;
 }
 
+.stage-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.stage-checklist__item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--card);
+  box-shadow: 0 0 0 transparent;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.stage-checklist__item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(15, 98, 254, 0.1);
+  transform: translateY(-1px);
+}
+
+.stage-checklist__item:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(15, 98, 254, 0.35);
+}
+
+.stage-checklist__item--complete {
+  border-color: var(--primary);
+  background: rgba(15, 98, 254, 0.08);
+}
+
+.stage-checklist__item--complete .stage-checklist__status {
+  color: var(--primary);
+}
+
+.stage-checklist__item--disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stage-checklist__item--disabled:hover {
+  border-color: var(--border);
+  box-shadow: 0 0 0 transparent;
+  transform: none;
+}
+
+.stage-checklist__control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
+.stage-checklist__toggle.cds--toggle {
+  min-width: 2.75rem;
+}
+
+.stage-checklist__label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.stage-checklist__title {
+  font-weight: 600;
+}
+
+.stage-checklist__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--fg-muted);
+}
+
+.stage-checklist__status {
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.stage-checklist__status--done {
+  color: var(--primary);
+}
+
+.stage-checklist__feedback {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-start;
+}
+
 .page-status {
   text-align: center;
   padding: 3rem;
