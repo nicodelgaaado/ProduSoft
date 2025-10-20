@@ -553,7 +553,14 @@ export function AiChatPanel() {
                           <div className={styles.listItemContent}>
                             <span className={styles.listItemTitle}>{title}</span>
                             {conversation.lastMessagePreview && (
-                              <span className={styles.listItemPreview}>{conversation.lastMessagePreview}</span>
+                              <div className={styles.listItemPreview}>
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={markdownComponents}
+                                >
+                                  {conversation.lastMessagePreview}
+                                </ReactMarkdown>
+                              </div>
                             )}
                             <span className={styles.listItemTime}>
                               {formatRelative(conversation.updatedAt)}
