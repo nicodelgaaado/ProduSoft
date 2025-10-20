@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { InlineLoading, Tag, Toggle } from '@carbon/react';
 import { RequireAuth } from '@/components/RequireAuth';
 import { Modal } from '@/components/Modal';
 import { StageBadge } from '@/components/StageBadge';
@@ -138,13 +139,37 @@ function OperatorView() {
       setError('Only the assigned operator can update the checklist.');
       return;
     }
+    const key = buildChecklistKey(item.orderId, item.stage);
+    const previousTasks = checklistForItem(item).map((task) => ({ ...task }));
+    const optimisticTasks = previousTasks.map((task) =>
+      task.id === taskId ? { ...task, completed } : task,
+    );
+    setChecklists((prev) => ({
+      ...prev,
+      [key]: optimisticTasks,
+    }));
+    setModalState((prev) => {
+      if (!prev || !('item' in prev)) {
+        return prev;
+      }
+      if (prev.item.orderId === item.orderId && prev.item.stage === item.stage) {
+        return {
+          ...prev,
+          item: {
+            ...prev.item,
+            checklist: optimisticTasks,
+          },
+        };
+      }
+      return prev;
+    });
     setChecklistSaving(true);
     try {
       const status = await WorkflowApi.updateChecklistItem(item.orderId, item.stage, { taskId, completed }, token);
       const tasks = status.checklist?.map((task) => ({ ...task })) ?? [];
       setChecklists((prev) => ({
         ...prev,
-        [buildChecklistKey(item.orderId, item.stage)]: tasks,
+        [key]: tasks,
       }));
       setQueue((prev) =>
         prev.map((row) =>
@@ -184,6 +209,25 @@ function OperatorView() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update checklist';
       setError(message);
+      setChecklists((prev) => ({
+        ...prev,
+        [key]: previousTasks,
+      }));
+      setModalState((prev) => {
+        if (!prev || !('item' in prev)) {
+          return prev;
+        }
+        if (prev.item.orderId === item.orderId && prev.item.stage === item.stage) {
+          return {
+            ...prev,
+            item: {
+              ...prev.item,
+              checklist: previousTasks,
+            },
+          };
+        }
+        return prev;
+      });
     } finally {
       setChecklistSaving(false);
     }
@@ -196,6 +240,10 @@ function OperatorView() {
   const isChecklistComplete = useCallback(
     (item: WorkQueueItem) => checklistForItem(item).every((task) => !task.required || task.completed),
     [checklistForItem],
+  );
+  const activeChecklistTasks = useMemo(
+    () => (modalState?.type === 'checklist' ? checklistForItem(modalState.item) : []),
+    [modalState, checklistForItem],
   );
 
   const handleComplete = async (item: WorkQueueItem) => {
@@ -419,26 +467,59 @@ function OperatorView() {
               Check off the tasks for <strong>{modalState.item.orderNumber}</strong> at the{' '}
               <strong>{modalState.item.stage.toLowerCase()}</strong> stage.
             </p>
-            {checklistForItem(modalState.item).length === 0 ? (
+            {activeChecklistTasks.length === 0 ? (
               <p className="muted">No checklist is configured for this stage.</p>
             ) : (
-              checklistForItem(modalState.item).map((task) => (
-                <label key={task.id}>
-                  <input
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={(event) => handleChecklistToggle(modalState.item, task.id, event.target.checked)}
-                    disabled={checklistSaving || modalState.item.assignee !== user?.username}
-                  />
-                  <span>
-                    {task.label}
-                    {task.required ? ' *' : ''}
-                  </span>
-                </label>
-              ))
+              <div className="stage-checklist">
+                {activeChecklistTasks.map((task) => {
+                  const disabled = checklistSaving || modalState.item.assignee !== user?.username;
+                  const toggleId = `stage-checklist-${modalState.item.orderId}-${task.id}`;
+                  const labelId = `${toggleId}-label`;
+                  const itemClasses = [
+                    'stage-checklist__item',
+                    task.completed ? 'stage-checklist__item--complete' : '',
+                    disabled ? 'stage-checklist__item--disabled' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ');
+                  return (
+                    <div key={task.id} className={itemClasses}>
+                      <div className="stage-checklist__label" id={labelId}>
+                        <span className="stage-checklist__title">{task.label}</span>
+                        <div className="stage-checklist__meta">
+                          <Tag type={task.required ? 'magenta' : 'cool-gray'} size="sm">
+                            {task.required ? 'Required' : 'Optional'}
+                          </Tag>
+                          <span className={`stage-checklist__status${task.completed ? ' stage-checklist__status--done' : ''}`}>
+                            {task.completed ? 'Completed' : 'Pending'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="stage-checklist__control">
+                        <Toggle
+                          id={toggleId}
+                          aria-labelledby={labelId}
+                          className="stage-checklist__toggle"
+                          hideLabel
+                          labelA=""
+                          labelB=""
+                          size="sm"
+                          toggled={task.completed}
+                          disabled={disabled}
+                          onToggle={(checked) => handleChecklistToggle(modalState.item, task.id, checked)}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
-            {checklistSaving && <small className="muted">Saving checklist updates...</small>}
-            {modalState.item.assignee !== user?.username && checklistForItem(modalState.item).length > 0 && (
+            {checklistSaving && (
+              <div className="stage-checklist__feedback">
+                <InlineLoading description="Saving checklist updates..." status="active" />
+              </div>
+            )}
+            {modalState.item.assignee !== user?.username && activeChecklistTasks.length > 0 && (
               <p className="muted">Only the assigned operator can update this checklist.</p>
             )}
             {!isChecklistComplete(modalState.item) && modalState.item.assignee === user?.username && (
