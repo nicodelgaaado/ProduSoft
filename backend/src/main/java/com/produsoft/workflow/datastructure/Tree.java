@@ -50,7 +50,7 @@ public class Tree<T> implements Iterable<T> {
             return 0;
         }
         int count = 0;
-        for (T ignored : this) {
+        for (Iterator<T> iterator = iterator(); iterator.hasNext(); iterator.next()) {
             count++;
         }
         return count;
