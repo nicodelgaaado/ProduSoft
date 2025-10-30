@@ -1,32 +1,45 @@
 'use client';
 
 import { Button, InlineNotification, Stack, TextInput, Tile } from '@carbon/react';
-import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './login.module.css';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { user, login, loading, error, clearError } = useAuth();
+  const searchParams = useSearchParams();
+  const { user, sessions, login, loading, error, clearError } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    if (user.roles.includes('SUPERVISOR')) {
-      router.replace('/supervisor');
-    } else if (user.roles.includes('OPERATOR')) {
-      router.replace('/operator');
+  const addingAccount = searchParams.get('addAccount') === '1';
+
+  const defaultDestination = useMemo(() => {
+    if (!user) {
+      return null;
     }
-  }, [user, router]);
+    return user.roles.includes('SUPERVISOR') ? '/supervisor' : '/operator';
+  }, [user]);
+
+  useEffect(() => {
+    if (addingAccount) {
+      return;
+    }
+    if (!defaultDestination) {
+      return;
+    }
+    router.replace(defaultDestination);
+  }, [defaultDestination, router, addingAccount]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitting(true);
     try {
-      await login(username.trim(), password);
+      const profile = await login(username.trim(), password);
+      const destination = profile.roles.includes('SUPERVISOR') ? '/supervisor' : '/operator';
+      router.replace(destination);
     } catch (err) {
       console.error('Login failed', err);
     } finally {
@@ -47,6 +60,11 @@ export default function LoginPage() {
           <div>
             <h2 className="cds--heading-05">Sign in</h2>
             <p className={styles.subtitle}>Use your operator or supervisor account to continue.</p>
+            {sessions.length > 1 && !addingAccount && (
+              <p className={styles.subtitle}>
+                You have {sessions.length} accounts available. Use the profile menu to switch between them.
+              </p>
+            )}
           </div>
 
           {error && (
