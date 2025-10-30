@@ -20,6 +20,13 @@ export function RequireAuth({ allowedRoles, children }: RequireAuthProps) {
     return allowedRoles.some((role) => user.roles.includes(role));
   }, [user, allowedRoles]);
 
+  const fallbackDestination = useMemo(() => {
+    if (!user) {
+      return '/login';
+    }
+    return user.roles.includes('SUPERVISOR') ? '/supervisor' : '/operator';
+  }, [user]);
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -27,9 +34,9 @@ export function RequireAuth({ allowedRoles, children }: RequireAuthProps) {
       return;
     }
     if (!isAuthorised) {
-      router.replace('/');
+      router.replace(fallbackDestination);
     }
-  }, [user, loading, isAuthorised, router]);
+  }, [user, loading, isAuthorised, router, fallbackDestination]);
 
   if (loading) {
     return (
