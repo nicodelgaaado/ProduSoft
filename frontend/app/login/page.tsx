@@ -1,12 +1,20 @@
 'use client';
 
 import { Button, InlineNotification, Stack, TextInput, Tile } from '@carbon/react';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './login.module.css';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, sessions, login, loading, error, clearError } = useAuth();
