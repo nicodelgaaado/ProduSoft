@@ -15,7 +15,7 @@ ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con 
 - Base de datos: PostgreSQL administrada en Neon (Render usa HikariCP). En desarrollo local se soporta H2 en memoria.
 
 ## Infraestructura serverless
-- Frontend servido en **Vercel**.
+- Frontend servido en **Vercel** (https://produ-soft.vercel.app/).
 - API de backend desplegada en **Render** como servicio web.
 - Base de datos **PostgreSQL** provista por **Neon**, con conexión TLS.
 
