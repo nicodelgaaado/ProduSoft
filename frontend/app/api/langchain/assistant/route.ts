@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ChatOllama } from '@langchain/ollama';
 import type { BaseMessageLike } from '@langchain/core/messages';
 import { z } from 'zod';
-import type {
-  OrderResponse,
-  OrderStageStatus,
-  StageState,
-  StageType,
-} from '@/types/api';
+import type { OrderResponse, OrderStageStatus, StageState, StageType } from '@/types/api';
 
 const MAX_CONTEXT_ORDERS = 10;
 const OLLAMA_MODEL = process.env.LANGCHAIN_OLLAMA_MODEL ?? 'gpt-oss:20b-cloud';
@@ -21,8 +16,11 @@ const OLLAMA_BASE_URL =
   'https://ollama.com';
 const OLLAMA_API_KEY =
   process.env.OLLAMA_API_KEY ?? process.env.LANGCHAIN_OLLAMA_API_KEY;
-const STAGE_ORDER: StageType[] = ['PREPARATION', 'ASSEMBLY', 'DELIVERY'];
-const STAGE_STATES: StageState[] = [
+const STAGE_ORDER = ['PREPARATION', 'ASSEMBLY', 'DELIVERY'] as const satisfies [
+  StageType,
+  ...StageType[],
+];
+const STAGE_STATES = [
   'BLOCKED',
   'PENDING',
   'IN_PROGRESS',
@@ -30,10 +28,9 @@ const STAGE_STATES: StageState[] = [
   'EXCEPTION',
   'SKIPPED',
   'REWORK',
-];
-const STAGE_RANK = new Map<StageType, number>(
-  STAGE_ORDER.map((stage, index) => [stage, index]),
-);
+  // ensure tuple requirement for z.enum
+] as const satisfies [StageState, ...StageState[]];
+const STAGE_RANK = new Map<StageType, number>(STAGE_ORDER.map((stage, index) => [stage, index]));
 const ACTION_NAMES = [
   'list_orders',
   'get_order_details',
