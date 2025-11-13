@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { ChatOllama } from '@langchain/ollama';
 import type { BaseMessageLike } from '@langchain/core/messages';
 import { z } from 'zod';
@@ -71,7 +71,7 @@ type ExecutionContext = {
   username: string;
 };
 
-type ActionDefinition<TArgs> = {
+type ActionDefinition<TArgs = unknown> = {
   name: ActionName;
   description: string;
   parameterSummary: string;
@@ -79,6 +79,10 @@ type ActionDefinition<TArgs> = {
   schema: z.ZodType<TArgs>;
   handler: (args: TArgs, ctx: ExecutionContext) => Promise<AgentActionResult>;
 };
+
+function defineAction<TArgs>(definition: ActionDefinition<TArgs>): ActionDefinition<TArgs> {
+  return definition;
+}
 
 const ListOrdersSchema = z.object({
   limit: z.number().int().min(1).max(25).optional(),
@@ -127,8 +131,8 @@ const ApproveSkipSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
-  {
+const ACTION_DEFINITIONS = [
+  defineAction({
     name: 'list_orders',
     description: 'Retrieve up to 25 live orders for situational awareness.',
     parameterSummary:
@@ -155,8 +159,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data: filtered.slice(0, limit),
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'get_order_details',
     description:
       'Pull a single order with all stage details before taking action.',
@@ -172,8 +176,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'create_order',
     description:
       'Create a brand-new work order when supervisors request new work.',
@@ -202,8 +206,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'update_order_priority',
     description: 'Supervisors can adjust queue priority on any order.',
     parameterSummary: 'orderId (number), priority (integer).',
@@ -225,8 +229,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'claim_stage',
     description: 'Operators claim a stage before doing work.',
     parameterSummary:
@@ -252,8 +256,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'complete_stage',
     description:
       'Operators mark a stage complete once the work and notes are captured.',
@@ -282,8 +286,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'flag_stage_exception',
     description:
       'Operators document blocking issues so supervisors can follow up.',
@@ -312,8 +316,8 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-  {
+  }),
+  defineAction({
     name: 'approve_stage_skip',
     description:
       'Supervisors can approve stage skips or resequencing when justified.',
@@ -340,11 +344,13 @@ const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
         data,
       };
     },
-  },
-];
+  }),
+] as const;
+
+const ACTION_LIST = ACTION_DEFINITIONS as unknown as ActionDefinition[];
 
 const ACTION_MAP = new Map<ActionName, ActionDefinition>(
-  ACTION_DEFINITIONS.map((action) => [action.name, action]),
+  ACTION_LIST.map((action) => [action.name, action]),
 );
 
 export async function POST(request: NextRequest) {
@@ -383,7 +389,7 @@ export async function POST(request: NextRequest) {
     );
     const userProfile = await fetchUserProfile(payload.token);
     const normalizedRoles = normalizeRoles(userProfile.roles);
-    const allowedActions = ACTION_DEFINITIONS.filter((action) =>
+    const allowedActions = ACTION_LIST.filter((action) =>
       action.roles.some((role) => normalizedRoles.has(role)),
     );
 
@@ -540,7 +546,7 @@ async function buildFinalAnswer(
       : actionResults
           .map(
             (result) =>
-              `- ${result.name}: ${result.status.toUpperCase()} � ${result.summary}${
+              `- ${result.name}: ${result.status.toUpperCase()} — ${result.summary}${
                 result.error ? ` (error: ${result.error})` : ''
               }`,
           )
@@ -716,4 +722,5 @@ function extractJson(text: string) {
   }
   return trimmed.slice(start, end + 1);
 }
+
 
