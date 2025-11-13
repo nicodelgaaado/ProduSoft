@@ -37,6 +37,7 @@ const ACTION_NAMES = [
   'create_order',
   'update_order_priority',
   'claim_stage',
+  'update_stage_checklist',
   'complete_stage',
   'flag_stage_exception',
   'approve_stage_skip',
@@ -116,6 +117,19 @@ const CompleteStageSchema = z.object({
   stage: z.enum(STAGE_ORDER),
   serviceTimeMinutes: z.number().int().min(1).max(600).optional(),
   notes: z.string().max(2000).optional(),
+});
+
+const UpdateChecklistSchema = z.object({
+  orderId: z.number().int().positive(),
+  stage: z.enum(STAGE_ORDER),
+  tasks: z
+    .array(
+      z.object({
+        taskId: z.string().min(1),
+        completed: z.boolean(),
+      }),
+    )
+    .min(1),
 });
 
 const FlagExceptionSchema = z.object({
@@ -254,6 +268,36 @@ const ACTION_DEFINITIONS = [
         status: 'success',
         summary: `Stage ${data.stage} claimed by ${data.assignee ?? ctx.username}.`,
         data,
+      };
+    },
+  }),
+  defineAction({
+    name: 'update_stage_checklist',
+    description: 'Operators can toggle checklist tasks before finishing a stage.',
+    parameterSummary:
+      'orderId (number), stage, tasks (array of { taskId, completed }).',
+    roles: ['OPERATOR'],
+    schema: UpdateChecklistSchema,
+    handler: async (args: z.infer<typeof UpdateChecklistSchema>, ctx) => {
+      let lastStatus: OrderStageStatus | null = null;
+      for (const task of args.tasks) {
+        lastStatus = await fetchWithAuthJson<OrderStageStatus>(
+          `/api/operator/orders/${args.orderId}/stages/${args.stage}/checklist`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              taskId: task.taskId,
+              completed: task.completed,
+            }),
+          },
+          ctx.token,
+        );
+      }
+      return {
+        name: 'update_stage_checklist',
+        status: 'success',
+        summary: `Updated ${args.tasks.length} checklist task${args.tasks.length === 1 ? '' : 's'} for stage ${args.stage}.`,
+        data: lastStatus,
       };
     },
   }),
