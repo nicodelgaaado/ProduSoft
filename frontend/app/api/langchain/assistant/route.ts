@@ -340,13 +340,14 @@ const ACTION_DEFINITIONS = [
     description:
       'Operators mark a stage complete once the work and notes are captured.',
     parameterSummary:
-      'orderId (number), stage, serviceTimeMinutes (optional int), notes (optional string).',
+      'orderId (number), stage, serviceTimeMinutes (optional int, defaults to 30), notes (optional string).',
     roles: ['OPERATOR'],
     schema: CompleteStageSchema,
     handler: async (args: z.infer<typeof CompleteStageSchema>, ctx) => {
+      const serviceTime = args.serviceTimeMinutes ?? 30;
       const payload = {
         assignee: ctx.username,
-        serviceTimeMinutes: args.serviceTimeMinutes ?? null,
+        serviceTimeMinutes: serviceTime,
         notes: args.notes ?? null,
       };
       const data = await fetchWithAuthJson<OrderStageStatus>(
