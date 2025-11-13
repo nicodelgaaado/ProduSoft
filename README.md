@@ -1,4 +1,4 @@
-# ProduSoft Workflow
+﻿# ProduSoft Workflow
 
 ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con apoyo de IA. Ofrece paneles específicos para operadores y supervisores, asegurando trazabilidad desde la preparación hasta la entrega.
 
@@ -41,5 +41,21 @@ ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con 
    ```
    La interfaz se sirve en `http://localhost:3000` y consume la API local.
 
+### Integracion LangChain/LangSmith (beta)
+- El panel **AI Assistant** incluye un recuadro superior denominado *LangChain agent (beta)*. Este formulario envia la pregunta al endpoint Next.js `/api/langchain/assistant`, que usa LangChain (`@langchain/core` + `@langchain/ollama`) para orquestar el modelo `gpt-oss:20b-cloud` expuesto por Ollama con el contexto actual de ordenes.
+- Configura en `frontend/.env.local` las siguientes variables (los valores mostrados son los defaults vigentes si no defines nada):
+  - OLLAMA_API_KEY=6d17ff00fdd34bf8b8f6b93ae4a3b7fc.wr5madu2TXwcYg5K0jXUe8Lv
+  - LANGCHAIN_OLLAMA_MODEL=gpt-oss:20b-cloud
+  - LANGCHAIN_OLLAMA_ENDPOINT=https://ollama.com
+  - LANGSMITH_TRACING=true
+  - LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+  - LANGSMITH_API_KEY=<tu-clave-langsmith>
+  - LANGSMITH_PROJECT=pr-elderly-resemblance-93
+  - WORKFLOW_API_BASE_URL=https://produsoft.onrender.com
+- El token Basic del usuario autenticado se adjunta a la llamada, por lo que el agente solo ve los pedidos permitidos para ese perfil. Si no hay token o el backend falla, el agente responde con la advertencia correspondiente pero sigue enviando la salida del modelo.
+- Para revisar las trazas, ingresa en LangSmith con la clave indicada y abre el proyecto definido en LANGSMITH_PROJECT.
+
 ## Despliegue
 El repositorio está preparado para integrarse con los pipelines nativos de Vercel (frontend), Render (backend) y Neon (base de datos). Ajusta las variables de entorno correspondientes en cada plataforma antes de publicar.
+
+
