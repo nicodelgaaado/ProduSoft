@@ -80,6 +80,53 @@ type ActionDefinition = {
   handler: (args: unknown, ctx: ExecutionContext) => Promise<AgentActionResult>;
 };
 
+const ListOrdersSchema = z.object({
+  limit: z.number().int().min(1).max(25).optional(),
+  stage: z.enum(STAGE_ORDER).optional(),
+  states: z.array(z.enum(STAGE_STATES)).optional(),
+});
+
+const GetOrderDetailsSchema = z.object({
+  orderId: z.number().int().positive(),
+});
+
+const CreateOrderSchema = z.object({
+  orderNumber: z.string().min(3).max(64),
+  priority: z.number().int().min(0).max(999).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+const UpdatePrioritySchema = z.object({
+  orderId: z.number().int().positive(),
+  priority: z.number().int().min(0).max(999),
+});
+
+const ClaimStageSchema = z.object({
+  orderId: z.number().int().positive(),
+  stage: z.enum(STAGE_ORDER),
+  assignee: z.string().min(2).max(64).optional(),
+});
+
+const CompleteStageSchema = z.object({
+  orderId: z.number().int().positive(),
+  stage: z.enum(STAGE_ORDER),
+  serviceTimeMinutes: z.number().int().min(1).max(600).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+const FlagExceptionSchema = z.object({
+  orderId: z.number().int().positive(),
+  stage: z.enum(STAGE_ORDER),
+  exceptionReason: z.string().min(3).max(500),
+  notes: z.string().max(2000).optional(),
+});
+
+const ApproveSkipSchema = z.object({
+  orderId: z.number().int().positive(),
+  stage: z.enum(STAGE_ORDER),
+  notes: z.string().max(2000).optional(),
+});
+
 const ACTION_DEFINITIONS: ActionDefinition[] = [
   {
     name: 'list_orders',
@@ -87,12 +134,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     parameterSummary:
       'limit (optional number 1-25), stage (PREPARATION/ASSEMBLY/DELIVERY), states (array of workflow states).',
     roles: ['OPERATOR', 'SUPERVISOR'],
-    schema: z.object({
-      limit: z.number().int().min(1).max(25).optional(),
-      stage: z.enum(STAGE_ORDER).optional(),
-      states: z.array(z.enum(STAGE_STATES)).optional(),
-    }),
-    handler: async (args, ctx) => {
+    schema: ListOrdersSchema,
+    handler: async (args: z.infer<typeof ListOrdersSchema>, ctx) => {
       const orders = await fetchOrders(ctx.token);
       let filtered = orders;
       if (args.stage) {
@@ -119,15 +162,9 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
       'Pull a single order with all stage details before taking action.',
     parameterSummary: 'orderId (number).',
     roles: ['OPERATOR', 'SUPERVISOR'],
-    schema: z.object({
-      orderId: z.number().int().positive(),
-    }),
-    handler: async (args, ctx) => {
-      const data = await fetchWithAuthJson<OrderResponse>(
-        `/api/orders/${args.orderId}`,
-        { method: 'GET' },
-        ctx.token,
-      );
+    schema: GetOrderDetailsSchema,
+    handler: async (args: z.infer<typeof GetOrderDetailsSchema>, ctx) => {
+      const data = await fetchWithAuthJson<OrderResponse>(`/api/orders/${args.orderId}`, { method: 'GET' }, ctx.token);
       return {
         name: 'get_order_details',
         status: 'success',
@@ -143,12 +180,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     parameterSummary:
       'orderNumber (string), priority (optional integer), notes (optional string).',
     roles: ['SUPERVISOR'],
-    schema: z.object({
-      orderNumber: z.string().min(3).max(64),
-      priority: z.number().int().min(0).max(999).optional(),
-      notes: z.string().max(2000).optional(),
-    }),
-    handler: async (args, ctx) => {
+    schema: CreateOrderSchema,
+    handler: async (args: z.infer<typeof CreateOrderSchema>, ctx) => {
       const body = {
         orderNumber: args.orderNumber,
         priority: args.priority ?? null,
@@ -175,11 +208,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     description: 'Supervisors can adjust queue priority on any order.',
     parameterSummary: 'orderId (number), priority (integer).',
     roles: ['SUPERVISOR'],
-    schema: z.object({
-      orderId: z.number().int().positive(),
-      priority: z.number().int().min(0).max(999),
-    }),
-    handler: async (args, ctx) => {
+    schema: UpdatePrioritySchema,
+    handler: async (args: z.infer<typeof UpdatePrioritySchema>, ctx) => {
       const data = await fetchWithAuthJson<OrderResponse>(
         `/api/orders/${args.orderId}/priority`,
         {
@@ -202,12 +232,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     parameterSummary:
       'orderId (number), stage (PREPARATION/ASSEMBLY/DELIVERY), assignee (optional string defaults to current user).',
     roles: ['OPERATOR'],
-    schema: z.object({
-      orderId: z.number().int().positive(),
-      stage: z.enum(STAGE_ORDER),
-      assignee: z.string().min(2).max(64).optional(),
-    }),
-    handler: async (args, ctx) => {
+    schema: ClaimStageSchema,
+    handler: async (args: z.infer<typeof ClaimStageSchema>, ctx) => {
       const payload = {
         assignee: args.assignee ?? ctx.username,
       };
@@ -234,13 +260,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     parameterSummary:
       'orderId (number), stage, serviceTimeMinutes (optional int), notes (optional string).',
     roles: ['OPERATOR'],
-    schema: z.object({
-      orderId: z.number().int().positive(),
-      stage: z.enum(STAGE_ORDER),
-      serviceTimeMinutes: z.number().int().min(1).max(600).optional(),
-      notes: z.string().max(2000).optional(),
-    }),
-    handler: async (args, ctx) => {
+    schema: CompleteStageSchema,
+    handler: async (args: z.infer<typeof CompleteStageSchema>, ctx) => {
       const payload = {
         assignee: ctx.username,
         serviceTimeMinutes: args.serviceTimeMinutes ?? null,
@@ -269,13 +290,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
     parameterSummary:
       'orderId (number), stage, exceptionReason (string), notes (optional string).',
     roles: ['OPERATOR'],
-    schema: z.object({
-      orderId: z.number().int().positive(),
-      stage: z.enum(STAGE_ORDER),
-      exceptionReason: z.string().min(3).max(500),
-      notes: z.string().max(2000).optional(),
-    }),
-    handler: async (args, ctx) => {
+    schema: FlagExceptionSchema,
+    handler: async (args: z.infer<typeof FlagExceptionSchema>, ctx) => {
       const payload = {
         assignee: ctx.username,
         exceptionReason: args.exceptionReason,
@@ -303,12 +319,8 @@ const ACTION_DEFINITIONS: ActionDefinition[] = [
       'Supervisors can approve stage skips or resequencing when justified.',
     parameterSummary: 'orderId (number), stage, notes (optional string).',
     roles: ['SUPERVISOR'],
-    schema: z.object({
-      orderId: z.number().int().positive(),
-      stage: z.enum(STAGE_ORDER),
-      notes: z.string().max(2000).optional(),
-    }),
-    handler: async (args, ctx) => {
+    schema: ApproveSkipSchema,
+    handler: async (args: z.infer<typeof ApproveSkipSchema>, ctx) => {
       const payload = {
         approver: ctx.username,
         notes: args.notes ?? null,
