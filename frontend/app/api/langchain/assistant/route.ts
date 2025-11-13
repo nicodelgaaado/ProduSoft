@@ -607,7 +607,10 @@ async function executePlan(
       continue;
     }
     if (definition.name === 'complete_stage') {
-      const checklistResults = await ensureChecklistBeforeCompletion(parsed.data, ctx);
+      const checklistResults = await ensureChecklistBeforeCompletion(
+        parsed.data as z.infer<typeof CompleteStageSchema>,
+        ctx,
+      );
       results.push(...checklistResults.entries);
       if (!checklistResults.ready) {
         continue;
