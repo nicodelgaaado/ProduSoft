@@ -34,6 +34,7 @@ const STAGE_RANK = new Map<StageType, number>(STAGE_ORDER.map((stage, index) => 
 const ACTION_NAMES = [
   'list_orders',
   'get_order_details',
+  'list_stage_checklist',
   'create_order',
   'update_order_priority',
   'claim_stage',
@@ -112,6 +113,11 @@ const ClaimStageSchema = z.object({
   assignee: z.string().min(2).max(64).optional(),
 });
 
+const ListChecklistSchema = z.object({
+  orderId: z.number().int().positive(),
+  stage: z.enum(STAGE_ORDER),
+});
+
 const CompleteStageSchema = z.object({
   orderId: z.number().int().positive(),
   stage: z.enum(STAGE_ORDER),
@@ -188,6 +194,34 @@ const ACTION_DEFINITIONS = [
         status: 'success',
         summary: `Pulled current data for order ${data.orderNumber}.`,
         data,
+      };
+    },
+  }),
+  defineAction({
+    name: 'list_stage_checklist',
+    description: 'Read the checklist items for any stage of an order.',
+    parameterSummary: 'orderId (number), stage (PREPARATION/ASSEMBLY/DELIVERY).',
+    roles: ['OPERATOR', 'SUPERVISOR'],
+    schema: ListChecklistSchema,
+    handler: async (args: z.infer<typeof ListChecklistSchema>, ctx) => {
+      const order = await fetchWithAuthJson<OrderResponse>(
+        `/api/orders/${args.orderId}`,
+        { method: 'GET' },
+        ctx.token,
+      );
+      const stageStatus = order.stages.find((status) => status.stage === args.stage);
+      if (!stageStatus) {
+        return {
+          name: 'list_stage_checklist',
+          status: 'error',
+          summary: `Stage ${args.stage} was not found on order ${order.orderNumber}.`,
+        };
+      }
+      return {
+        name: 'list_stage_checklist',
+        status: 'success',
+        summary: `Retrieved ${stageStatus.checklist.length} tasks for stage ${args.stage}.`,
+        data: stageStatus.checklist,
       };
     },
   }),

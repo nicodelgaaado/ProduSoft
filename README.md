@@ -53,7 +53,7 @@ ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con 
   - LANGSMITH_PROJECT=pr-elderly-resemblance-93
   - WORKFLOW_API_BASE_URL=https://produsoft.onrender.com
 - El token Basic del usuario autenticado se adjunta a la llamada, por lo que el agente solo ve los pedidos permitidos para ese perfil. Si no hay token o el backend falla, el agente responde con la advertencia correspondiente pero sigue enviando la salida del modelo.
-- El agente puede ejecutar acciones autónomas (crear órdenes, ajustar prioridades, reclamar/completar etapas, actualizar checklists, aprobar saltos o registrar excepciones) siempre respetando los permisos del rol (operador o supervisor) activo.
+- El agente puede ejecutar acciones autónomas (crear órdenes, ajustar prioridades, listar y actualizar checklists, reclamar/completar etapas, aprobar saltos o registrar excepciones) siempre respetando los permisos del rol (operador o supervisor) activo.
 - Para revisar las trazas, ingresa en LangSmith con la clave indicada y abre el proyecto definido en LANGSMITH_PROJECT.
 
 ## Despliegue
