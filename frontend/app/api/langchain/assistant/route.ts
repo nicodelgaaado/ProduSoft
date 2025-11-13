@@ -606,6 +606,13 @@ async function executePlan(
       });
       continue;
     }
+    if (definition.name === 'complete_stage') {
+      const checklistResults = await ensureChecklistBeforeCompletion(parsed.data, ctx);
+      results.push(...checklistResults.entries);
+      if (!checklistResults.ready) {
+        continue;
+      }
+    }
     try {
       const result = await definition.handler(parsed.data, ctx);
       results.push(result);
@@ -619,6 +626,75 @@ async function executePlan(
     }
   }
   return results;
+}
+
+async function ensureChecklistBeforeCompletion(
+  args: z.infer<typeof CompleteStageSchema>,
+  ctx: ExecutionContext,
+): Promise<{ entries: AgentActionResult[]; ready: boolean }> {
+  const entries: AgentActionResult[] = [];
+  try {
+    const order = await fetchWithAuthJson<OrderResponse>(
+      `/api/orders/${args.orderId}`,
+      { method: 'GET' },
+      ctx.token,
+    );
+    const stageStatus = order.stages.find((status) => status.stage === args.stage);
+    if (!stageStatus) {
+      entries.push({
+        name: 'complete_stage',
+        status: 'error',
+        summary: `Stage ${args.stage} was not found on order ${order.orderNumber}.`,
+      });
+      return { entries, ready: false };
+    }
+    const pending = stageStatus.checklist.filter(
+      (task) => task.required && !task.completed,
+    );
+    if (pending.length === 0) {
+      return { entries, ready: true };
+    }
+    if (!ctx.roles.has('OPERATOR')) {
+      entries.push({
+        name: 'update_stage_checklist',
+        status: 'error',
+        summary:
+          'Checklist tasks are pending, but the current user is not an operator and cannot update them automatically.',
+      });
+      return { entries, ready: false };
+    }
+    const updateArgs: z.infer<typeof UpdateChecklistSchema> = {
+      orderId: args.orderId,
+      stage: args.stage,
+      tasks: pending.map((task) => ({
+        taskId: task.id,
+        completed: true,
+      })),
+    };
+    const updateAction = ACTION_MAP.get('update_stage_checklist');
+    if (!updateAction) {
+      entries.push({
+        name: 'update_stage_checklist',
+        status: 'error',
+        summary: 'Checklist update action is not available in this environment.',
+      });
+      return { entries, ready: false };
+    }
+    const updateResult = await updateAction.handler(updateArgs, ctx);
+    entries.push(updateResult);
+    if (updateResult.status !== 'success') {
+      return { entries, ready: false };
+    }
+    return { entries, ready: true };
+  } catch (error) {
+    entries.push({
+      name: 'update_stage_checklist',
+      status: 'error',
+      summary: 'Failed to evaluate or update checklist tasks before completion.',
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { entries, ready: false };
+  }
 }
 
 async function buildFinalAnswer(
