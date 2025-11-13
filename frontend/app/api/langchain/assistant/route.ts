@@ -71,13 +71,13 @@ type ExecutionContext = {
   username: string;
 };
 
-type ActionDefinition = {
+type ActionDefinition<TArgs> = {
   name: ActionName;
   description: string;
   parameterSummary: string;
   roles: Role[];
-  schema: z.ZodTypeAny;
-  handler: (args: unknown, ctx: ExecutionContext) => Promise<AgentActionResult>;
+  schema: z.ZodType<TArgs>;
+  handler: (args: TArgs, ctx: ExecutionContext) => Promise<AgentActionResult>;
 };
 
 const ListOrdersSchema = z.object({
@@ -127,7 +127,7 @@ const ApproveSkipSchema = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-const ACTION_DEFINITIONS: ActionDefinition[] = [
+const ACTION_DEFINITIONS: ActionDefinition<unknown>[] = [
   {
     name: 'list_orders',
     description: 'Retrieve up to 25 live orders for situational awareness.',
@@ -540,7 +540,7 @@ async function buildFinalAnswer(
       : actionResults
           .map(
             (result) =>
-              `- ${result.name}: ${result.status.toUpperCase()} â€” ${result.summary}${
+              `- ${result.name}: ${result.status.toUpperCase()} — ${result.summary}${
                 result.error ? ` (error: ${result.error})` : ''
               }`,
           )
@@ -716,3 +716,4 @@ function extractJson(text: string) {
   }
   return trimmed.slice(start, end + 1);
 }
+
