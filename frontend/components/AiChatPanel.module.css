@@ -24,6 +24,96 @@
   align-items: start;
 }
 
+.agentTile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-04, 1rem);
+}
+
+.agentHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cds-spacing-04, 1rem);
+}
+
+.agentTitle {
+  margin: 0;
+}
+
+.agentMeta {
+  margin: 0.25rem 0 0;
+  max-width: 40rem;
+  color: var(--cds-text-secondary, #525252);
+}
+
+.agentForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03, 0.75rem);
+}
+
+.agentActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.agentLoading {
+  display: flex;
+  justify-content: center;
+}
+
+.agentResult {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cds-spacing-03, 0.75rem);
+  border-top: 1px solid var(--cds-border-subtle, #e0e0e0);
+  padding-top: var(--cds-spacing-03, 0.75rem);
+}
+
+.agentResultHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cds-spacing-03, 0.75rem);
+}
+
+.agentResultLabel {
+  font-weight: 600;
+}
+
+.agentAnswer :global(p) {
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.agentAnswer :global(p:last-child) {
+  margin-bottom: 0;
+}
+
+.agentContext {
+  border: 1px dashed var(--cds-border-subtle, #e0e0e0);
+  border-radius: 0.5rem;
+  padding: var(--cds-spacing-03, 0.75rem);
+}
+
+.agentContext summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agentContext p {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+}
+
+.agentWarning {
+  color: var(--cds-support-warning, #f1c21b);
+  font-size: 0.875rem;
+}
+
 .conversationTile {
   display: flex;
   flex-direction: column;

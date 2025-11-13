@@ -20,6 +20,7 @@ import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from '@/hooks/useAuth';
 import { WorkflowApi } from '@/lib/api';
+import { askLangchainAgent, type AgentResult } from '@/lib/langchainAgent';
 import type {
   AiConversationResponse,
   AiConversationSummaryResponse,
@@ -44,6 +45,10 @@ export function AiChatPanel() {
   const streamingControllerRef = useRef<AbortController | null>(null);
   const streamingMessageIdRef = useRef<number | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<number | null>(null);
+  const [agentQuestion, setAgentQuestion] = useState<string>('');
+  const [agentResult, setAgentResult] = useState<AgentResult | null>(null);
+  const [agentLoading, setAgentLoading] = useState<boolean>(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
 
   const hasToken = Boolean(token);
   const messageCount = activeConversation?.messages.length ?? 0;
@@ -155,6 +160,45 @@ export function AiChatPanel() {
   const handleRefresh = () => {
     void loadConversations();
   };
+
+  const handleAgentSubmit = useCallback(
+    async (event?: React.FormEvent<HTMLFormElement>) => {
+      event?.preventDefault();
+      if (!hasToken) {
+        setAgentError('You must be signed in to run the LangChain agent.');
+        return;
+      }
+      if (agentLoading) {
+        return;
+      }
+      const prompt = agentQuestion.trim();
+      if (!prompt) {
+        return;
+      }
+      setAgentLoading(true);
+      setAgentError(null);
+      try {
+        const result = await askLangchainAgent({ question: prompt, token });
+        setAgentResult(result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to reach the LangChain agent.';
+        setAgentError(message);
+        setAgentResult(null);
+      } finally {
+        setAgentLoading(false);
+      }
+    },
+    [agentLoading, agentQuestion, hasToken, token],
+  );
+
+  const handleAgentReset = useCallback(() => {
+    if (agentLoading) {
+      return;
+    }
+    setAgentQuestion('');
+    setAgentResult(null);
+    setAgentError(null);
+  }, [agentLoading]);
 
   const handleSend = useCallback(async () => {
     if (!token) {
@@ -401,6 +445,10 @@ export function AiChatPanel() {
     () => hasToken && Boolean(messageInput.trim()) && !sending,
     [hasToken, messageInput, sending],
   );
+  const canSubmitAgent = useMemo(
+    () => hasToken && Boolean(agentQuestion.trim()) && !agentLoading,
+    [agentLoading, agentQuestion, hasToken],
+  );
 
   const conversationTitle = activeConversation?.title?.trim() || 'Untitled conversation';
 
@@ -429,6 +477,82 @@ export function AiChatPanel() {
               onClose={() => setError(null)}
             />
           )}
+
+          <Layer level={1}>
+            <Tile className={styles.agentTile}>
+              <div className={styles.agentHeader}>
+                <div>
+                  <h3 className={`${styles.agentTitle} cds--heading-04`}>LangChain agent (beta)</h3>
+                  <p className={styles.agentMeta}>
+                    Run a one-off prompt through LangChain + LangSmith using your current workflow context.
+                  </p>
+                </div>
+                <Button
+                  kind="ghost"
+                  size="sm"
+                  renderIcon={Renew}
+                  type="button"
+                  onClick={handleAgentReset}
+                  disabled={agentLoading || (!agentQuestion && !agentResult && !agentError)}
+                >
+                  Reset
+                </Button>
+              </div>
+              {agentError && (
+                <InlineNotification
+                  kind="error"
+                  lowContrast
+                  title="LangChain agent"
+                  subtitle={agentError}
+                  onClose={() => setAgentError(null)}
+                />
+              )}
+              <form className={styles.agentForm} onSubmit={handleAgentSubmit}>
+                <TextArea
+                  labelText="LangChain question"
+                  hideLabel
+                  value={agentQuestion}
+                  onChange={(event) => setAgentQuestion(event.target.value)}
+                  placeholder={
+                    hasToken
+                      ? 'Ask about bottlenecks, KPIs, or next steps without starting a saved conversation...'
+                      : 'Sign in to send prompts through the LangChain agent.'
+                  }
+                  disabled={!hasToken || agentLoading}
+                  rows={3}
+                />
+                <div className={styles.agentActions}>
+                  <Button type="submit" kind="secondary" renderIcon={Send} disabled={!canSubmitAgent}>
+                    {agentLoading ? 'Routing...' : 'Ask LangChain'}
+                  </Button>
+                </div>
+              </form>
+              {agentLoading && (
+                <div className={styles.agentLoading}>
+                  <InlineLoading status="active" description="Waiting for the LangChain agent" />
+                </div>
+              )}
+              {!agentLoading && agentResult && (
+                <div className={styles.agentResult}>
+                  <div className={styles.agentResultHeader}>
+                    <span className={styles.agentResultLabel}>Response ({agentResult.model})</span>
+                    {agentResult.contextWarning && (
+                      <span className={styles.agentWarning}>{agentResult.contextWarning}</span>
+                    )}
+                  </div>
+                  <div className={styles.agentAnswer}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                      {agentResult.answer}
+                    </ReactMarkdown>
+                  </div>
+                  <details className={styles.agentContext}>
+                    <summary>Context snapshot</summary>
+                    <p>{agentResult.contextSummary}</p>
+                  </details>
+                </div>
+              )}
+            </Tile>
+          </Layer>
 
           <div className={styles.layout}>
             <Layer level={1}>
