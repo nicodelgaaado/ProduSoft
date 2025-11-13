@@ -114,6 +114,149 @@
   font-size: 0.875rem;
 }
 
+.agentPlanSection {
+  border: 1px solid var(--cds-border-subtle, #e0e0e0);
+  border-radius: 0.5rem;
+  padding: var(--cds-spacing-03, 0.75rem);
+  background: var(--cds-layer-accent, #f4f4f4);
+}
+
+.agentPlanHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.agentPlanHeader h5 {
+  margin: 0;
+}
+
+.agentPlanIntent {
+  margin: 0;
+  color: var(--cds-text-secondary, #525252);
+}
+
+.agentPlanReasoning {
+  margin: 0 0 0.5rem;
+  color: var(--cds-text-secondary, #525252);
+}
+
+.agentPlanList {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agentPlanActionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.agentPlanRationale {
+  color: var(--cds-text-secondary, #525252);
+  font-size: 0.875rem;
+}
+
+.agentPlanArgs {
+  margin: 0.25rem 0 0;
+  padding: 0.5rem;
+  background: var(--cds-layer, #ffffff);
+  border-radius: 0.25rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.agentPlanInfo {
+  margin: 0;
+  color: var(--cds-text-secondary, #525252);
+}
+
+.agentPlanNotes {
+  margin: 0.5rem 0 0;
+  font-style: italic;
+  color: var(--cds-text-secondary, #525252);
+}
+
+.agentActionLog {
+  border: 1px solid var(--cds-border-subtle, #e0e0e0);
+  border-radius: 0.5rem;
+  padding: var(--cds-spacing-03, 0.75rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agentActionItems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.agentActionItem {
+  border: 1px solid var(--cds-border-subtle, #e0e0e0);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  background: var(--cds-layer, #ffffff);
+}
+
+.agentActionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.agentActionName {
+  font-weight: 600;
+}
+
+.agentActionStatus {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.agentActionStatusSuccess {
+  color: var(--cds-support-success, #24a148);
+}
+
+.agentActionStatusError {
+  color: var(--cds-support-error, #da1e28);
+}
+
+.agentActionStatusSkipped {
+  color: var(--cds-text-secondary, #525252);
+}
+
+.agentActionSummary {
+  margin: 0.25rem 0;
+}
+
+.agentActionErrorText {
+  margin: 0.25rem 0;
+  color: var(--cds-support-error, #da1e28);
+}
+
+.agentActionPayload {
+  margin: 0.25rem 0 0;
+}
+
+.agentActionPayload pre {
+  background: var(--cds-layer, #f4f4f4);
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
 .conversationTile {
   display: flex;
   flex-direction: column;
