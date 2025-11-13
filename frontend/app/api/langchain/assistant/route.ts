@@ -71,6 +71,7 @@ type AgentPlan = z.infer<typeof PlanSchema>;
 type ExecutionContext = {
   token: string;
   username: string;
+  roles: Set<Role>;
 };
 
 type ActionDefinition<TArgs = unknown> = {
@@ -313,6 +314,13 @@ const ACTION_DEFINITIONS = [
     roles: ['OPERATOR'],
     schema: UpdateChecklistSchema,
     handler: async (args: z.infer<typeof UpdateChecklistSchema>, ctx) => {
+      if (!ctx.roles.has('OPERATOR')) {
+        return {
+          name: 'update_stage_checklist',
+          status: 'error',
+          summary: 'Only operators can update stage checklists.',
+        };
+      }
       let lastStatus: OrderStageStatus | null = null;
       for (const task of args.tasks) {
         lastStatus = await fetchWithAuthJson<OrderStageStatus>(
@@ -469,7 +477,7 @@ export async function POST(request: NextRequest) {
     const userProfile = await fetchUserProfile(payload.token);
     const normalizedRoles = normalizeRoles(userProfile.roles);
     const allowedActions = ACTION_LIST.filter((action) =>
-      action.roles.some((role) => normalizedRoles.has(role)),
+        action.roles.some((role) => normalizedRoles.has(role)),
     );
 
     const model = new ChatOllama({
@@ -496,6 +504,7 @@ export async function POST(request: NextRequest) {
         actionResults = await executePlan(agentPlan.actions, {
           token: payload.token,
           username: userProfile.username,
+          roles: normalizedRoles,
         });
       }
     }
