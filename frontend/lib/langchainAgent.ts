@@ -3,11 +3,34 @@ type AgentPayload = {
   token?: string | null;
 };
 
+export type AgentPlanAction = {
+  name: string;
+  rationale?: string;
+  arguments?: Record<string, unknown>;
+};
+
+export type AgentPlan = {
+  intent: string;
+  reasoning?: string;
+  notes?: string;
+  actions: AgentPlanAction[];
+};
+
+export type AgentActionLog = {
+  name: string;
+  status: 'success' | 'error' | 'skipped';
+  summary: string;
+  data?: unknown;
+  error?: string;
+};
+
 export type AgentResult = {
   answer: string;
   model: string;
   contextSummary: string;
   contextWarning?: string;
+  plan?: AgentPlan | null;
+  actions?: AgentActionLog[] | null;
 };
 
 export async function askLangchainAgent(payload: AgentPayload): Promise<AgentResult> {

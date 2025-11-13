@@ -20,7 +20,12 @@ import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from '@/hooks/useAuth';
 import { WorkflowApi } from '@/lib/api';
-import { askLangchainAgent, type AgentResult } from '@/lib/langchainAgent';
+import {
+  askLangchainAgent,
+  type AgentActionLog,
+  type AgentPlan,
+  type AgentResult,
+} from '@/lib/langchainAgent';
 import type {
   AiConversationResponse,
   AiConversationSummaryResponse,
@@ -549,6 +554,12 @@ export function AiChatPanel() {
                     <summary>Context snapshot</summary>
                     <p>{agentResult.contextSummary}</p>
                   </details>
+                  {agentResult.plan && (
+                    <AgentPlanSummary plan={agentResult.plan} />
+                  )}
+                  {agentResult.actions && agentResult.actions.length > 0 && (
+                    <AgentActionLogList actions={agentResult.actions} />
+                  )}
                 </div>
               )}
             </Tile>
@@ -751,6 +762,77 @@ function ChatMessage({
   );
 }
 
+function AgentPlanSummary({ plan }: { plan: AgentPlan }) {
+  const hasActions = plan.actions && plan.actions.length > 0;
+  return (
+    <section className={styles.agentPlanSection}>
+      <div className={styles.agentPlanHeader}>
+        <h5>Agent plan</h5>
+        {plan.intent && <p className={styles.agentPlanIntent}>{plan.intent}</p>}
+      </div>
+      {plan.reasoning && <p className={styles.agentPlanReasoning}>{plan.reasoning}</p>}
+      {hasActions ? (
+        <ol className={styles.agentPlanList}>
+          {plan.actions.map((action, index) => (
+            <li key={`${action.name}-${index}`}>
+              <div className={styles.agentPlanActionHeader}>
+                <strong>{action.name}</strong>
+                {action.rationale && (
+                  <span className={styles.agentPlanRationale}>{action.rationale}</span>
+                )}
+              </div>
+              {action.arguments && Object.keys(action.arguments).length > 0 && (
+                <pre className={styles.agentPlanArgs}>{formatAgentData(action.arguments)}</pre>
+              )}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className={styles.agentPlanInfo}>No autonomous actions were required.</p>
+      )}
+      {plan.notes && <p className={styles.agentPlanNotes}>{plan.notes}</p>}
+    </section>
+  );
+}
+
+function AgentActionLogList({ actions }: { actions: AgentActionLog[] }) {
+  return (
+    <section className={styles.agentActionLog}>
+      <h5>Execution log</h5>
+      <ul className={styles.agentActionItems}>
+        {actions.map((action, index) => {
+          const statusClass =
+            action.status === 'success'
+              ? styles.agentActionStatusSuccess
+              : action.status === 'error'
+                ? styles.agentActionStatusError
+                : styles.agentActionStatusSkipped;
+          return (
+            <li key={`${action.name}-${index}`} className={styles.agentActionItem}>
+              <div className={styles.agentActionHeader}>
+                <span className={styles.agentActionName}>{action.name}</span>
+                <span className={`${styles.agentActionStatus} ${statusClass}`}>
+                  {action.status}
+                </span>
+              </div>
+              <p className={styles.agentActionSummary}>{action.summary}</p>
+              {action.error && (
+                <p className={styles.agentActionErrorText}>Error: {action.error}</p>
+              )}
+              {action.data !== undefined && action.data !== null && (
+                <details className={styles.agentActionPayload}>
+                  <summary>Response payload</summary>
+                  <pre>{formatAgentData(action.data)}</pre>
+                </details>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 const markdownComponents: Components = {
   a(props) {
     return <a {...props} target="_blank" rel="noopener noreferrer" />;
@@ -786,4 +868,18 @@ function formatTimestamp(iso: string) {
     return '';
   }
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatAgentData(data: unknown) {
+  if (data == null) {
+    return '';
+  }
+  if (typeof data === 'string') {
+    return data;
+  }
+  try {
+    return JSON.stringify(data, null, 2);
+  } catch {
+    return String(data);
+  }
 }
