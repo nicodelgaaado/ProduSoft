@@ -1,13 +1,10 @@
-﻿'use client';
+'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   Header as CarbonHeader,
   HeaderGlobalBar,
-  HeaderMenuItem,
-  HeaderNavigation,
   HeaderName,
   SkipToContent,
   Theme,
@@ -16,22 +13,12 @@ import { Add, ChevronDown, Logout, UserAvatar } from '@carbon/icons-react';
 import { useAuth } from '@/hooks/useAuth';
 import styles from './Header.module.css';
 
-const navLinks = [
-  { href: '/operator', label: 'Operator Console', roles: ['OPERATOR'] },
-  { href: '/supervisor', label: 'Supervisor Dashboard', roles: ['SUPERVISOR'] },
-];
-
 export function Header() {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, sessions, switchAccount, logout, logoutAll } = useAuth();
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-
-  const visibleLinks = navLinks.filter((link) =>
-    user?.roles.some((role) => link.roles.includes(role)),
-  );
 
   const defaultDestinationFor = (roles: string[]) =>
     roles.includes('SUPERVISOR') ? '/supervisor' : '/operator';
@@ -89,20 +76,6 @@ export function Header() {
         <HeaderName href="/" prefix="ProduSoft">
           Workflow
         </HeaderName>
-        {visibleLinks.length > 0 && (
-          <HeaderNavigation aria-label="ProduSoft navigation">
-            {visibleLinks.map((link) => (
-              <HeaderMenuItem
-                key={link.href}
-                as={Link}
-                href={link.href}
-                isCurrentPage={pathname === link.href}
-              >
-                {link.label}
-              </HeaderMenuItem>
-            ))}
-          </HeaderNavigation>
-        )}
         <HeaderGlobalBar>
           {user && (
             <div className={styles.accountSwitcher}>
@@ -125,7 +98,10 @@ export function Header() {
                   </div>
                   <ul className={styles.accountList}>
                     {sessions.map((account) => (
-                      <li key={account.username} className={account.isActive ? styles.activeAccount : undefined}>
+                      <li
+                        key={account.username}
+                        className={account.isActive ? styles.activeAccount : undefined}
+                      >
                         <button
                           type="button"
                           className={styles.accountEntry}
@@ -166,4 +142,3 @@ export function Header() {
     </Theme>
   );
 }
-
