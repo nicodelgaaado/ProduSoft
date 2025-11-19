@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { WorkflowApi } from '@/lib/api';
-import type { AuthUser } from '@/types/api';
+import type { AuthRole, AuthUser } from '@/types/api';
 
 type StoredSession = AuthUser & { token: string };
 
@@ -15,6 +15,7 @@ type AuthContextValue = {
   error: string | null;
   sessions: AccountSummary[];
   login: (username: string, password: string) => Promise<AuthUser>;
+  signUp: (payload: { username: string; password: string; role: AuthRole }) => Promise<AuthUser>;
   switchAccount: (username: string) => AuthUser | null;
   logout: (username?: string) => AuthUser | null;
   logoutAll: () => void;
@@ -28,51 +29,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeUsername, setActiveUsername] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [initialised, setInitialised] = useState<boolean>(false);
-
   const storageKey = 'produSoft:auth-sessions';
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      setLoading(false);
-      setInitialised(true);
-      return;
-    }
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as {
-          sessions?: StoredSession[];
-          activeUsername?: string | null;
-        };
-        if (Array.isArray(parsed.sessions)) {
-          setSessions(parsed.sessions);
-        }
-        if (parsed.activeUsername) {
-          setActiveUsername(parsed.activeUsername);
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to restore saved sessions', err);
+    if (typeof window !== 'undefined') {
+      // ensure old persisted sessions are cleared so the app always starts signed out
       window.localStorage.removeItem(storageKey);
-    } finally {
-      setLoading(false);
-      setInitialised(true);
     }
+    setLoading(false);
   }, [storageKey]);
-
-  useEffect(() => {
-    if (!initialised || typeof window === 'undefined') {
-      return;
-    }
-    if (sessions.length === 0) {
-      window.localStorage.removeItem(storageKey);
-      setActiveUsername(null);
-      return;
-    }
-    const payload = JSON.stringify({ sessions, activeUsername });
-    window.localStorage.setItem(storageKey, payload);
-  }, [sessions, activeUsername, initialised, storageKey]);
 
   useEffect(() => {
     if (sessions.length === 0) {
@@ -84,18 +49,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setActiveUsername(sessions[0]?.username ?? null);
   }, [sessions, activeUsername]);
 
+  const persistLogin = useCallback((profile: AuthUser, token: string) => {
+    setSessions((prev) => {
+      const filtered = prev.filter((session) => session.username !== profile.username);
+      return [{ ...profile, token }, ...filtered];
+    });
+    setActiveUsername(profile.username);
+    return profile;
+  }, []);
+
   const login = useCallback(async (username: string, password: string) => {
     setLoading(true);
     setError(null);
     const encoded = typeof window === 'undefined' ? '' : btoa(`${username}:${password}`);
     try {
       const profile = await WorkflowApi.me(encoded);
-      setSessions((prev) => {
-        const filtered = prev.filter((session) => session.username !== profile.username);
-        return [{ ...profile, token: encoded }, ...filtered];
-      });
-      setActiveUsername(profile.username);
-      return profile;
+      return persistLogin(profile, encoded);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Authentication failed';
       setError(message);
@@ -103,7 +72,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [persistLogin]);
+
+  const signUp = useCallback(
+    async ({ username, password, role }: { username: string; password: string; role: AuthRole }) => {
+      setLoading(true);
+      setError(null);
+      const trimmedUsername = username.trim();
+      const normalizedRole = role === 'SUPERVISOR' ? 'SUPERVISOR' : 'OPERATOR';
+      const encoded = typeof window === 'undefined' ? '' : btoa(`${trimmedUsername}:${password}`);
+      try {
+        await WorkflowApi.signUp({ username: trimmedUsername, password, role: normalizedRole });
+        const profile = await WorkflowApi.me(encoded);
+        return persistLogin(profile, encoded);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Sign-up failed';
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [persistLogin],
+  );
 
   const switchAccount = useCallback(
     (username: string) => {
@@ -184,12 +175,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       sessions: sessionSummaries,
       login,
+      signUp,
       switchAccount,
       logout,
       logoutAll,
       clearError,
     }),
-    [user, token, loading, error, sessionSummaries, login, switchAccount, logout, logoutAll, clearError],
+    [user, token, loading, error, sessionSummaries, login, signUp, switchAccount, logout, logoutAll, clearError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

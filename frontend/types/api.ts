@@ -81,6 +81,8 @@ export interface AuthUser {
   roles: string[];
 }
 
+export type AuthRole = 'OPERATOR' | 'SUPERVISOR';
+
 export type AiMessageRole = 'USER' | 'ASSISTANT' | 'SYSTEM';
 
 export interface AiConversationSummaryResponse {
