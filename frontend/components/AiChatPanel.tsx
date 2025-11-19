@@ -170,7 +170,7 @@ export function AiChatPanel() {
     async (event?: React.FormEvent<HTMLFormElement>) => {
       event?.preventDefault();
       if (!hasToken) {
-        setAgentError('You must be signed in to run the LangChain agent.');
+        setAgentError('You must be signed in to run the LangChain Agent.');
         return;
       }
       if (agentLoading) {
@@ -186,7 +186,7 @@ export function AiChatPanel() {
         const result = await askLangchainAgent({ question: prompt, token });
         setAgentResult(result);
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unable to reach the LangChain agent.';
+        const message = err instanceof Error ? err.message : 'Unable to reach the LangChain Agent.';
         setAgentError(message);
         setAgentResult(null);
       } finally {
@@ -487,9 +487,9 @@ export function AiChatPanel() {
             <Tile className={styles.agentTile}>
               <div className={styles.agentHeader}>
                 <div>
-                  <h3 className={`${styles.agentTitle} cds--heading-04`}>LangChain agent (beta)</h3>
+                  <h3 className={`${styles.agentTitle} cds--heading-04`}>LangChain Agent</h3>
                   <p className={styles.agentMeta}>
-                    Run a one-off prompt through LangChain + LangSmith using your current workflow context.
+                    Run a single prompt using the current workflow context.
                   </p>
                 </div>
                 <Button
@@ -507,7 +507,7 @@ export function AiChatPanel() {
                 <InlineNotification
                   kind="error"
                   lowContrast
-                  title="LangChain agent"
+                  title="LangChain Agent"
                   subtitle={agentError}
                   onClose={() => setAgentError(null)}
                 />
@@ -520,8 +520,8 @@ export function AiChatPanel() {
                   onChange={(event) => setAgentQuestion(event.target.value)}
                   placeholder={
                     hasToken
-                      ? 'Ask about bottlenecks, KPIs, or next steps without starting a saved conversation...'
-                      : 'Sign in to send prompts through the LangChain agent.'
+                        ? 'Ask about bottlenecks, KPIs, or next steps without starting a saved conversation...'
+                      : 'Sign in to send prompts through the LangChain Agent.'
                   }
                   disabled={!hasToken || agentLoading}
                   rows={3}
@@ -534,7 +534,7 @@ export function AiChatPanel() {
               </form>
               {agentLoading && (
                 <div className={styles.agentLoading}>
-                  <InlineLoading status="active" description="Waiting for the LangChain agent" />
+                  <InlineLoading status="active" description="Waiting for the LangChain Agent" />
                 </div>
               )}
               {!agentLoading && agentResult && (

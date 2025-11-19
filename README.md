@@ -42,7 +42,7 @@ ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con 
    La interfaz se sirve en `http://localhost:3000` y consume la API local.
 
 ### Integracion LangChain/LangSmith (beta)
-- El panel **AI Assistant** incluye un recuadro superior denominado *LangChain agent (beta)*. Este formulario envia la pregunta al endpoint Next.js `/api/langchain/assistant`, que usa LangChain (`@langchain/core` + `@langchain/ollama`) para orquestar el modelo `gpt-oss:20b-cloud` expuesto por Ollama con el contexto actual de ordenes.
+- El panel **AI Assistant** incluye un recuadro superior denominado *LangChain Agent*. Este formulario envia la pregunta al endpoint Next.js `/api/langchain/assistant`, que usa LangChain (`@langchain/core` + `@langchain/ollama`) para orquestar el modelo `gpt-oss:20b-cloud` expuesto por Ollama con el contexto actual de ordenes.
 - Configura en `frontend/.env.local` las siguientes variables (los valores mostrados son los defaults vigentes si no defines nada):
   - OLLAMA_API_KEY=6d17ff00fdd34bf8b8f6b93ae4a3b7fc.wr5madu2TXwcYg5K0jXUe8Lv
   - LANGCHAIN_OLLAMA_MODEL=gpt-oss:20b-cloud
