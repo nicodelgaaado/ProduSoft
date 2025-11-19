@@ -527,7 +527,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to run the LangChain agent.';
+      error instanceof Error ? error.message : 'Failed to run the LangChain Agent.';
     return NextResponse.json({ message }, { status: 502 });
   }
 }
