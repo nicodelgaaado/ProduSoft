@@ -1,6 +1,10 @@
-﻿# ProduSoft Workflow
+# ProduSoft Workflow
 
 ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con apoyo de IA. Ofrece paneles específicos para operadores y supervisores, asegurando trazabilidad desde la preparación hasta la entrega.
+
+## Repositorios en GitHub
+- Frontend: [ProduSoft-Frontend](https://github.com/nicodelgaaado/ProduSoft-Frontend)
+- Backend: [ProduSoft-Backend](https://github.com/nicodelgaaado/ProduSoft-Backend)
 
 ## Características principales
 - Panel de operador con colas por etapa, checklists interactivos y captura de tiempos, notas y excepciones.
@@ -46,5 +50,3 @@ ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con 
 
 ## Despliegue
 El repositorio está preparado para integrarse con los pipelines nativos de Vercel (frontend), Render (backend) y Neon (base de datos). Ajusta las variables de entorno correspondientes en cada plataforma antes de publicar.
-
-
