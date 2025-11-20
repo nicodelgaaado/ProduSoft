@@ -520,10 +520,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       answer: finalResponse.answer,
       model: finalResponse.model,
-      contextSummary: contextSummary || 'No contextual data was available.',
       contextWarning: contextError ?? undefined,
-      plan: agentPlan,
-      actions: actionResults,
     });
   } catch (error) {
     const message =
