@@ -207,15 +207,7 @@ function LoginPageContent() {
 
           {mode === 'signin' && (
             <div className={styles.hint}>
-              <p>Sample accounts:</p>
-              <ul>
-                <li>
-                  Operator - <code>operator1 / user</code>
-                </li>
-                <li>
-                  Supervisor - <code>supervisor1 / superuser</code>
-                </li>
-              </ul>
+              <p>Create an account with Sign up, or ask an administrator for a provisioned username and password.</p>
             </div>
           )}
         </Stack>

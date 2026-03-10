@@ -523,9 +523,10 @@ export async function POST(request: NextRequest) {
       contextWarning: contextError ?? undefined,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Failed to run the LangChain Agent.';
-    return NextResponse.json({ message }, { status: 502 });
+    return NextResponse.json(
+      { message: sanitizeRouteError(error) },
+      { status: 502 },
+    );
   }
 }
 
@@ -871,6 +872,19 @@ async function readErrorMessage(response: Response) {
   } catch {
     return response.statusText;
   }
+}
+
+function sanitizeRouteError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return 'Failed to run the LangChain Agent.';
+  }
+  if (
+    error.message === 'Agent plan was not valid JSON.' ||
+    error.message === 'Agent plan schema validation failed.'
+  ) {
+    return error.message;
+  }
+  return 'Failed to run the LangChain Agent.';
 }
 
 function extractJson(text: string) {

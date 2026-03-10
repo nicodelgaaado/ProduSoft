@@ -69,7 +69,7 @@ public class AiChatService {
                 response.message().role(),
                 response.message().content());
         } catch (RestClientResponseException ex) {
-            throw new AiClientException("Ollama API error: " + ex.getResponseBodyAsString(), ex);
+            throw new AiClientException("Ollama API request failed with status " + ex.getStatusCode().value() + ".", ex);
         } catch (RestClientException ex) {
             throw new AiClientException("Failed to call Ollama API", ex);
         }
@@ -107,8 +107,8 @@ public class AiChatService {
             HttpResponse<InputStream> response = ensureStreamingClient()
                 .send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
             if (response.statusCode() >= 400) {
-                String errorBody = readErrorBody(response.body());
-                throw new AiClientException("Ollama API error: " + errorBody);
+                readErrorBody(response.body());
+                throw new AiClientException("Ollama API request failed with status " + response.statusCode() + ".");
             }
             StringBuilder builder = new StringBuilder();
             try (InputStream inputStream = response.body();
@@ -120,7 +120,7 @@ public class AiChatService {
                     }
                     OllamaStreamChunk chunk = objectMapper.readValue(line, OllamaStreamChunk.class);
                     if (StringUtils.hasText(chunk.error())) {
-                        throw new AiClientException("Ollama API error: " + chunk.error());
+                        throw new AiClientException("Ollama API returned an error while streaming.");
                     }
                     if (chunk.message() != null && chunk.message().content() != null) {
                         String delta = chunk.message().content();

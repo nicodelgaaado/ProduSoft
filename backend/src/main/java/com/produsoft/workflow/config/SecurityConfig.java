@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -27,6 +28,18 @@ public class SecurityConfig {
 
     @Value("${app.security.allowed-origins:http://localhost:3000}")
     private String allowedOrigins;
+
+    @Value("${app.security.bootstrap-operator.username:}")
+    private String bootstrapOperatorUsername;
+
+    @Value("${app.security.bootstrap-operator.password:}")
+    private String bootstrapOperatorPassword;
+
+    @Value("${app.security.bootstrap-supervisor.username:}")
+    private String bootstrapSupervisorUsername;
+
+    @Value("${app.security.bootstrap-supervisor.password:}")
+    private String bootstrapSupervisorPassword;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -51,19 +64,20 @@ public class SecurityConfig {
 
     @Bean
     public InMemoryUserDetailsManager userDetailsManager(PasswordEncoder passwordEncoder) {
-        UserDetails operator = User
-            .withUsername("operator1")
-            .password(passwordEncoder.encode("user"))
-            .roles("OPERATOR")
-            .build();
-
-        UserDetails supervisor = User
-            .withUsername("supervisor1")
-            .password(passwordEncoder.encode("superuser"))
-            .roles("SUPERVISOR")
-            .build();
-
-        return new InMemoryUserDetailsManager(operator, supervisor);
+        InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
+        registerBootstrapUser(
+            manager,
+            passwordEncoder,
+            bootstrapOperatorUsername,
+            bootstrapOperatorPassword,
+            "OPERATOR");
+        registerBootstrapUser(
+            manager,
+            passwordEncoder,
+            bootstrapSupervisorUsername,
+            bootstrapSupervisorPassword,
+            "SUPERVISOR");
+        return manager;
     }
 
     @Bean
@@ -88,5 +102,23 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private void registerBootstrapUser(
+        InMemoryUserDetailsManager manager,
+        PasswordEncoder passwordEncoder,
+        String username,
+        String password,
+        String role
+    ) {
+        if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
+            return;
+        }
+        UserDetails user = User
+            .withUsername(username.trim())
+            .password(passwordEncoder.encode(password))
+            .roles(role)
+            .build();
+        manager.createUser(user);
     }
 }
