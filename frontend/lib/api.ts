@@ -9,6 +9,7 @@ import type {
   WorkQueueItem,
   OrderStageStatus,
   AiStreamEvent,
+  AuthRole,
 } from '@/types/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
@@ -46,9 +47,17 @@ async function apiFetch<T>(
         errorMessage = payload.message;
       }
     } catch {
-      // ignore json parse issues
+      try {
+        const text = await response.text();
+        if (text) {
+          errorMessage = text;
+        }
+      } catch {
+        // ignore secondary parse issues
+      }
     }
-    throw new Error(errorMessage || 'Request failed');
+    const suffix = response.status ? ` (HTTP ${response.status})` : '';
+    throw new Error(errorMessage || `Request failed${suffix}`);
   }
 
   if (response.status === 204) {
@@ -60,6 +69,14 @@ async function apiFetch<T>(
 
 export const WorkflowApi = {
   me: (token: string) => apiFetch<AuthUser>('/auth/me', { method: 'GET' }, token),
+  signUp: (payload: { username: string; password: string; role: AuthRole }) =>
+    apiFetch<AuthUser>(
+      '/auth/signup',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+    ),
   listOrders: (token: string) => apiFetch<OrderResponse[]>('/api/orders', { method: 'GET' }, token),
   getOrder: (orderId: number, token: string) =>
     apiFetch<OrderResponse>(`/api/orders/${orderId}`, { method: 'GET' }, token),

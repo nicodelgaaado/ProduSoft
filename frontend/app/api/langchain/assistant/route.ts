@@ -520,14 +520,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       answer: finalResponse.answer,
       model: finalResponse.model,
-      contextSummary: contextSummary || 'No contextual data was available.',
       contextWarning: contextError ?? undefined,
-      plan: agentPlan,
-      actions: actionResults,
     });
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Failed to run the LangChain agent.';
+      error instanceof Error ? error.message : 'Failed to run the LangChain Agent.';
     return NextResponse.json({ message }, { status: 502 });
   }
 }

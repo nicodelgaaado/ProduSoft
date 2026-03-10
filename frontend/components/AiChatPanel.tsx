@@ -22,8 +22,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { WorkflowApi } from '@/lib/api';
 import {
   askLangchainAgent,
-  type AgentActionLog,
-  type AgentPlan,
   type AgentResult,
 } from '@/lib/langchainAgent';
 import type {
@@ -170,7 +168,7 @@ export function AiChatPanel() {
     async (event?: React.FormEvent<HTMLFormElement>) => {
       event?.preventDefault();
       if (!hasToken) {
-        setAgentError('You must be signed in to run the LangChain agent.');
+        setAgentError('You must be signed in to run the LangChain Agent.');
         return;
       }
       if (agentLoading) {
@@ -186,7 +184,7 @@ export function AiChatPanel() {
         const result = await askLangchainAgent({ question: prompt, token });
         setAgentResult(result);
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unable to reach the LangChain agent.';
+        const message = err instanceof Error ? err.message : 'Unable to reach the LangChain Agent.';
         setAgentError(message);
         setAgentResult(null);
       } finally {
@@ -487,9 +485,9 @@ export function AiChatPanel() {
             <Tile className={styles.agentTile}>
               <div className={styles.agentHeader}>
                 <div>
-                  <h3 className={`${styles.agentTitle} cds--heading-04`}>LangChain agent (beta)</h3>
+                  <h3 className={`${styles.agentTitle} cds--heading-04`}>LangChain Agent</h3>
                   <p className={styles.agentMeta}>
-                    Run a one-off prompt through LangChain + LangSmith using your current workflow context.
+                    Run a single prompt using the current workflow context.
                   </p>
                 </div>
                 <Button
@@ -507,7 +505,7 @@ export function AiChatPanel() {
                 <InlineNotification
                   kind="error"
                   lowContrast
-                  title="LangChain agent"
+                  title="LangChain Agent"
                   subtitle={agentError}
                   onClose={() => setAgentError(null)}
                 />
@@ -520,8 +518,8 @@ export function AiChatPanel() {
                   onChange={(event) => setAgentQuestion(event.target.value)}
                   placeholder={
                     hasToken
-                      ? 'Ask about bottlenecks, KPIs, or next steps without starting a saved conversation...'
-                      : 'Sign in to send prompts through the LangChain agent.'
+                        ? 'Ask about bottlenecks, KPIs, or next steps without starting a saved conversation...'
+                      : 'Sign in to send prompts through the LangChain Agent.'
                   }
                   disabled={!hasToken || agentLoading}
                   rows={3}
@@ -534,7 +532,7 @@ export function AiChatPanel() {
               </form>
               {agentLoading && (
                 <div className={styles.agentLoading}>
-                  <InlineLoading status="active" description="Waiting for the LangChain agent" />
+                  <InlineLoading status="active" description="Waiting for the LangChain Agent" />
                 </div>
               )}
               {!agentLoading && agentResult && (
@@ -550,16 +548,6 @@ export function AiChatPanel() {
                       {agentResult.answer}
                     </ReactMarkdown>
                   </div>
-                  <details className={styles.agentContext}>
-                    <summary>Context snapshot</summary>
-                    <p>{agentResult.contextSummary}</p>
-                  </details>
-                  {agentResult.plan && (
-                    <AgentPlanSummary plan={agentResult.plan} />
-                  )}
-                  {agentResult.actions && agentResult.actions.length > 0 && (
-                    <AgentActionLogList actions={agentResult.actions} />
-                  )}
                 </div>
               )}
             </Tile>
@@ -762,77 +750,6 @@ function ChatMessage({
   );
 }
 
-function AgentPlanSummary({ plan }: { plan: AgentPlan }) {
-  const hasActions = plan.actions && plan.actions.length > 0;
-  return (
-    <section className={styles.agentPlanSection}>
-      <div className={styles.agentPlanHeader}>
-        <h5>Agent plan</h5>
-        {plan.intent && <p className={styles.agentPlanIntent}>{plan.intent}</p>}
-      </div>
-      {plan.reasoning && <p className={styles.agentPlanReasoning}>{plan.reasoning}</p>}
-      {hasActions ? (
-        <ol className={styles.agentPlanList}>
-          {plan.actions.map((action, index) => (
-            <li key={`${action.name}-${index}`}>
-              <div className={styles.agentPlanActionHeader}>
-                <strong>{action.name}</strong>
-                {action.rationale && (
-                  <span className={styles.agentPlanRationale}>{action.rationale}</span>
-                )}
-              </div>
-              {action.arguments && Object.keys(action.arguments).length > 0 && (
-                <pre className={styles.agentPlanArgs}>{formatAgentData(action.arguments)}</pre>
-              )}
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p className={styles.agentPlanInfo}>No autonomous actions were required.</p>
-      )}
-      {plan.notes && <p className={styles.agentPlanNotes}>{plan.notes}</p>}
-    </section>
-  );
-}
-
-function AgentActionLogList({ actions }: { actions: AgentActionLog[] }) {
-  return (
-    <section className={styles.agentActionLog}>
-      <h5>Execution log</h5>
-      <ul className={styles.agentActionItems}>
-        {actions.map((action, index) => {
-          const statusClass =
-            action.status === 'success'
-              ? styles.agentActionStatusSuccess
-              : action.status === 'error'
-                ? styles.agentActionStatusError
-                : styles.agentActionStatusSkipped;
-          return (
-            <li key={`${action.name}-${index}`} className={styles.agentActionItem}>
-              <div className={styles.agentActionHeader}>
-                <span className={styles.agentActionName}>{action.name}</span>
-                <span className={`${styles.agentActionStatus} ${statusClass}`}>
-                  {action.status}
-                </span>
-              </div>
-              <p className={styles.agentActionSummary}>{action.summary}</p>
-              {action.error && (
-                <p className={styles.agentActionErrorText}>Error: {action.error}</p>
-              )}
-              {action.data !== undefined && action.data !== null && (
-                <details className={styles.agentActionPayload}>
-                  <summary>Response payload</summary>
-                  <pre>{formatAgentData(action.data)}</pre>
-                </details>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 const markdownComponents: Components = {
   a(props) {
     return <a {...props} target="_blank" rel="noopener noreferrer" />;
@@ -868,18 +785,4 @@ function formatTimestamp(iso: string) {
     return '';
   }
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatAgentData(data: unknown) {
-  if (data == null) {
-    return '';
-  }
-  if (typeof data === 'string') {
-    return data;
-  }
-  try {
-    return JSON.stringify(data, null, 2);
-  } catch {
-    return String(data);
-  }
 }

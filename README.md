@@ -1,4 +1,4 @@
-﻿# ProduSoft Workflow
+# ProduSoft Workflow
 
 ProduSoft es una plataforma para coordinar órdenes de trabajo industriales con apoyo de IA. Ofrece paneles específicos para operadores y supervisores, asegurando trazabilidad desde la preparación hasta la entrega.
 

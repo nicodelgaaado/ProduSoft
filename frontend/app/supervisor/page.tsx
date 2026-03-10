@@ -21,6 +21,17 @@ const stageLabels: Record<StageType, string> = {
   DELIVERY: 'Delivery',
 };
 
+type LaneKey = 'new' | 'inProgress' | 'escalated' | 'completed';
+
+const laneFilters: Record<LaneKey, { label: string; states: OrderStageStatus['state'][] }> = {
+  new: { label: 'New', states: ['PENDING'] },
+  inProgress: { label: 'In Progress', states: ['IN_PROGRESS', 'REWORK'] },
+  escalated: { label: 'Escalated', states: ['EXCEPTION', 'BLOCKED'] },
+  completed: { label: 'Completed', states: ['COMPLETED', 'SKIPPED'] },
+};
+
+const laneOrder: LaneKey[] = ['new', 'inProgress', 'escalated', 'completed'];
+
 type ActionModalState =
   | { type: 'skip' | 'rework'; order: OrderResponse; stage: StageType }
   | null;
@@ -57,6 +68,7 @@ function SupervisorView() {
     notes: '',
   });
   const [createSubmitting, setCreateSubmitting] = useState<boolean>(false);
+  const [activeLane, setActiveLane] = useState<LaneKey>('new');
 
   const loadData = useCallback(async () => {
     if (!token) return;
@@ -188,6 +200,20 @@ function SupervisorView() {
     [orders],
   );
 
+  const laneCounts = useMemo(
+    () =>
+      laneOrder.reduce((acc, key) => {
+        acc[key] = sortedOrders.filter((order) => laneFilters[key].states.includes(order.overallState)).length;
+        return acc;
+      }, {} as Record<LaneKey, number>),
+    [sortedOrders],
+  );
+
+  const laneOrders = useMemo(
+    () => sortedOrders.filter((order) => laneFilters[activeLane].states.includes(order.overallState)),
+    [activeLane, sortedOrders],
+  );
+
   return (
     <section className="page">
       <header className="page-header">
@@ -254,67 +280,87 @@ function SupervisorView() {
         </header>
         {loading && orders.length === 0 && <div className="table__empty">Loading orders…</div>}
         {!loading && orders.length === 0 && <div className="table__empty">No orders captured yet.</div>}
-        <div className="order-grid">
-          {sortedOrders.map((order) => (
-            <article key={order.id} className="order-card">
-              <header className="order-card__header">
-                <div>
-                  <h3>{order.orderNumber}</h3>
-                  <p className="muted">Current stage: {stageLabels[order.currentStage]}</p>
-                </div>
-                <div className="order-card__meta">
-                  <label htmlFor={`priority-${order.id}`}>Priority</label>
-                  <input
-                    id={`priority-${order.id}`}
-                    type="number"
-                    step="1"
-                    value={priorityDrafts[order.id] ?? String(order.priority ?? '')}
-                    onChange={(event) => handlePriorityChange(order, event.target.value)}
-                    onBlur={() => handlePriorityBlur(order)}
-                    className="order-card__priority"
-                  />
-                </div>
-              </header>
-              {order.notes && <p className="order-card__notes">{order.notes}</p>}
-              <div className="stage-list">
-                {order.stages
-                  .slice()
-                  .sort((a: OrderStageStatus, b: OrderStageStatus) => stageOrder[a.stage] - stageOrder[b.stage])
-                  .map((stage) => (
-                    <div key={stage.id ?? `${order.id}-${stage.stage}`} className="stage-list__row">
-                      <div className="stage-list__info">
-                        <span className="stage-list__name">{stageLabels[stage.stage]}</span>
-                        <StageBadge state={stage.state} />
-                        {stage.assignee && <span className="muted"> • {stage.assignee}</span>}
-                      </div>
-                      <div className="stage-list__details">
-                        {stage.notes && <p>{stage.notes}</p>}
-                        {stage.exceptionReason && <p className="exception">Exception: {stage.exceptionReason}</p>}
-                        {stage.supervisorNotes && <p className="muted">Supervisor: {stage.supervisorNotes}</p>}
-                      </div>
-                      <div className="stage-list__actions">
-                        {stage.state === 'EXCEPTION' && (
-                          <>
-                            <button type="button" className="ghost" onClick={() => openActionModal(order, stage.stage, 'skip')}>
-                              Approve skip
-                            </button>
-                            <button type="button" onClick={() => openActionModal(order, stage.stage, 'rework')}>
-                              Request rework
-                            </button>
-                          </>
-                        )}
-                        {stage.state === 'COMPLETED' && (
-                          <button type="button" onClick={() => openActionModal(order, stage.stage, 'rework')}>
-                            Request rework
-                          </button>
-                        )}
-                      </div>
+        {orders.length > 0 && (
+          <div className="order-lanes">
+            <div className="order-tabs" role="tablist" aria-label="Order lanes">
+              {laneOrder.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeLane === key}
+                  className={`order-tab ${activeLane === key ? 'order-tab--active' : ''}`}
+                  onClick={() => setActiveLane(key)}
+                >
+                  <span>{laneFilters[key].label}</span>
+                  <span className="order-tab__count">{laneCounts[key] ?? 0}</span>
+                </button>
+              ))}
+            </div>
+            <div className="order-lane-panel" role="tabpanel" aria-label={`${laneFilters[activeLane].label} orders`}>
+              {laneOrders.length === 0 && <div className="table__empty">No orders in this lane.</div>}
+              {laneOrders.map((order) => (
+                <article key={order.id} className="order-card">
+                  <header className="order-card__header">
+                    <div>
+                      <h3>{order.orderNumber}</h3>
+                      <p className="muted">Current stage: {stageLabels[order.currentStage]}</p>
                     </div>
-                  ))}
-              </div>
-            </article>
-          ))}
-        </div>
+                    <div className="order-card__meta">
+                      <label htmlFor={`priority-${order.id}`}>Priority</label>
+                      <input
+                        id={`priority-${order.id}`}
+                        type="number"
+                        step="1"
+                        value={priorityDrafts[order.id] ?? String(order.priority ?? '')}
+                        onChange={(event) => handlePriorityChange(order, event.target.value)}
+                        onBlur={() => handlePriorityBlur(order)}
+                        className="order-card__priority"
+                      />
+                    </div>
+                  </header>
+                  {order.notes && <p className="order-card__notes">{order.notes}</p>}
+                  <div className="stage-list">
+                    {order.stages
+                      .slice()
+                      .sort((a: OrderStageStatus, b: OrderStageStatus) => stageOrder[a.stage] - stageOrder[b.stage])
+                      .map((stage) => (
+                        <div key={stage.id ?? `${order.id}-${stage.stage}`} className="stage-list__row">
+                          <div className="stage-list__info">
+                            <span className="stage-list__name">{stageLabels[stage.stage]}</span>
+                            <StageBadge state={stage.state} />
+                            {stage.assignee && <span className="muted"> • {stage.assignee}</span>}
+                          </div>
+                          <div className="stage-list__details">
+                            {stage.notes && <p>{stage.notes}</p>}
+                            {stage.exceptionReason && <p className="exception">Exception: {stage.exceptionReason}</p>}
+                            {stage.supervisorNotes && <p className="muted">Supervisor: {stage.supervisorNotes}</p>}
+                          </div>
+                          <div className="stage-list__actions">
+                            {stage.state === 'EXCEPTION' && (
+                              <>
+                                <button type="button" className="ghost" onClick={() => openActionModal(order, stage.stage, 'skip')}>
+                                  Approve skip
+                                </button>
+                                <button type="button" onClick={() => openActionModal(order, stage.stage, 'rework')}>
+                                  Request rework
+                                </button>
+                              </>
+                            )}
+                            {stage.state === 'COMPLETED' && (
+                              <button type="button" onClick={() => openActionModal(order, stage.stage, 'rework')}>
+                                Request rework
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <AiChatPanel />
