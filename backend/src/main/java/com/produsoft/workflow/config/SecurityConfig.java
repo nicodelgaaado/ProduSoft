@@ -91,17 +91,35 @@ public class SecurityConfig {
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
             .map(String::trim)
             .filter(s -> !s.isBlank())
+            .map(this::normalizeAllowedOriginPattern)
+            .distinct()
             .collect(Collectors.toList());
         if (origins.isEmpty()) {
-            origins = List.of("*");
+            origins = List.of("http://localhost:*", "http://127.0.0.1:*");
         }
-        configuration.setAllowedOrigins(origins);
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*") );
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private String normalizeAllowedOriginPattern(String origin) {
+        if (origin.equals("http://localhost") || origin.startsWith("http://localhost:")) {
+            return "http://localhost:*";
+        }
+        if (origin.equals("http://127.0.0.1") || origin.startsWith("http://127.0.0.1:")) {
+            return "http://127.0.0.1:*";
+        }
+        if (origin.equals("https://localhost") || origin.startsWith("https://localhost:")) {
+            return "https://localhost:*";
+        }
+        if (origin.equals("https://127.0.0.1") || origin.startsWith("https://127.0.0.1:")) {
+            return "https://127.0.0.1:*";
+        }
+        return origin;
     }
 
     private void registerBootstrapUser(
